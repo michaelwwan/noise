@@ -1,0 +1,8 @@
+path: /scratch/martin.br/new_data/
+# fold-2
+train: [APO]
+val: [OCL]
+
+# Classes
+names:
+    0: Osteoclast
