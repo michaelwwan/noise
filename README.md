@@ -22,44 +22,48 @@ For alternative installation methods including [Conda](https://anaconda.org/cond
 
 </details>
 
-<details open>
-<summary>Usage</summary>
+## Dataset
+Our dataset consists of full slide images and corresponding instance segmentation annotations, along with patches used for training and validation in our experiments. Please download the dataset from [here]() and and place it in the dataset folder with the following folder structure:
 
-### CLI
-
-YOLOv8 may be used directly in the Command Line Interface (CLI) with a `yolo` command:
-
-```bash
-yolo predict model=yolov8n.pt source='https://ultralytics.com/images/bus.jpg'
+```
+noise
+  |- ...
+  |- ...
+  |- dataset
+    |- images
+    |- labels
+  |- ultralytics
+  |- ...
+  |- ...
 ```
 
-`yolo` can be used for a variety of tasks and modes and accepts additional arguments, i.e. `imgsz=640`. See the YOLOv8 [CLI Docs](https://docs.ultralytics.com/usage/cli) for examples.
+## Whole Slide Inference
+Instance segmentation prediction can be done for a whole slide image by creating overlapping patches of ```832x832``` resolution, that are then merged to generate a full-scale output. Different models trained on various configurations of data are available [here]().
 
-### Python
-
-YOLOv8 may also be used directly in a Python environment, and accepts the same [arguments](https://docs.ultralytics.com/usage/cfg/) as in the CLI example above:
-
-```python
-from ultralytics import YOLO
-
-# Load a model
-model = YOLO("yolov8n.yaml")  # build a new model from scratch
-model = YOLO("yolov8n.pt")  # load a pretrained model (recommended for training)
-
-# Use the model
-model.train(data="coco128.yaml", epochs=3)  # train the model
-metrics = model.val()  # evaluate model performance on the validation set
-results = model("https://ultralytics.com/images/bus.jpg")  # predict on an image
-path = model.export(format="onnx")  # export the model to ONNX format
+```
+python wsi_inference.py path/to/checkpoint.pt path/to/images
 ```
 
-See YOLOv8 [Python Docs](https://docs.ultralytics.com/usage/python) for more examples.
+Outputs will be stored in ```path/to/output```.
 
-</details>
+## Training
+Training from scratch or finetuning a specific checkpoint can be done using the following command:
 
+```
+python train.py --ckpt path/to/checkpoint.pt
+```
 
-## Dataset details
+## Validation
+Running evaluation on test data can be done using the following command:
+
+```
+python val.py --ckpt path/to/checkpoint.pt
+```
 
 ## Acknowledgement
+NOISe is largely based on [YOLOv8](https://github.com/ultralytics/ultralytics).
 
 ## Citation
+If you find the dataset, model weights, or the code useful for your work, please consider citing us:
+```
+```
