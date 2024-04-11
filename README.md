@@ -23,22 +23,34 @@ For alternative installation methods including [Conda](https://anaconda.org/cond
 </details>
 
 ## Dataset
-Our dataset consists of full slide images and corresponding instance segmentation annotations, along with patches used for training and validation in our experiments. Please download the dataset from [here]() and and place it in the dataset folder with the following folder structure:
+Our dataset consists of full slide images and corresponding instance segmentation annotations, along with patches used for training and validation in our experiments. Please download the dataset from [here](https://drive.google.com/drive/folders/1hwGVKH4pN1Ftcl9bDKUykTIU8mcZfmiu?usp=drive_link), unzip the data and place it in the dataset folder with the following folder structure:
 
 ```
 noise
-  |- ...
-  |- ...
-  |- dataset
-    |- images
-    |- labels
-  |- ultralytics
-  |- ...
-  |- ...
+    |...
+    |-- dataset
+        |-- m1
+            |-- images
+            |-- labels
+        |-- m2
+            |-- images
+            |-- labels
+        |...
+        |-- m5
+            |-- images
+            |-- labels
+    |...
 ```
 
 ## Whole Slide Inference
-Instance segmentation prediction can be done for a whole slide image by creating overlapping patches of ```832x832``` resolution, that are then merged to generate a full-scale output. Different models trained on various configurations of data are available [here]().
+Instance segmentation prediction can be done for a whole slide image by creating overlapping patches of ```832x832``` resolution, that are then merged to generate a full-scale output. Different models trained on various configurations of data are available [here](https://drive.google.com/drive/folders/1pHpwhwJSKN47Dbtcy92F2XHydpURMb4O?usp=drive_link).
+
+| Model Name                   | Info                                                                                           |
+| ---------------------------- | ---------------------------------------------------------------------------------------------- |
+| `yolo_mouse_ins.pt`          | YOLOv8 model trained on entire mouse data for osteoclast instance segmentation                 |
+| `yolo_mouse_det_pretrain.pt` | NOISE pretrain - YOLOv8 model trained on entire mouse data for osteoclast and nuclei detection |
+| `noise_h1_ins_finetune.pt`   | NOISe model finetuned on H1 dataset for osteoclast instance segmentation                       |
+| `noise_h2_ins_finetune.pt`   | NOISe model finetuned on H2 dataset for osteoclast instance segmentation                       |
 
 ```
 python wsi_inference.py path/to/checkpoint.pt path/to/images
@@ -58,6 +70,31 @@ Running evaluation on test data can be done using the following command:
 
 ```
 python val.py --ckpt path/to/checkpoint.pt
+```
+
+## Training on your data
+NOISe can be further improved by training on custom data following these steps:
+
+### Preparing dataset
+We provide a helper script to convert whole slide images into overlapping patches of a fixed size for training and validation of models.
+
+```
+python create_patches.py --img_foldername path/to/wsi_imagefolder --roi_foldername path/to/imageJ_rois --out_foldername path/to/patch_folder
+```
+
+### Configs
+Update the config.yaml according to the dataset created:
+```
+path: path/to/patch_data
+train: [train_folder1, train_folder2, ...]
+val: [test_folder1, test_folder2, ...]
+```
+
+### Train
+Once the dataset is generated, and the `config.yaml` file is adjusted accordingly, training can be done using:
+
+```
+python train.py --ckpt path/to/checkpoint.pt --data config.yaml
 ```
 
 ## Acknowledgement

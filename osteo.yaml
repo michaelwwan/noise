@@ -1,0 +1,8 @@
+path: ./dataset
+# fold-1
+train: [M2, M3, M4, M5]
+val: [M1]
+
+# Classes
+names:
+    0: Osteoclast

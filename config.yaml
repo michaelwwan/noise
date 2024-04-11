@@ -1,0 +1,7 @@
+path: /path/to/dataset
+train: [Train]
+val: [Test]
+
+# Classes
+names:
+    0: Osteoclast
