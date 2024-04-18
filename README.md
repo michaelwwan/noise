@@ -5,14 +5,14 @@
   </p>
 </div>
 
-NOISe builds on top of [YOLOv8](https://github.com/ultralytics/ultralytics) for the task of osteoclast instance segmentation. This repository contains training, validation, and inference scripts to train an instance segmentation model from scratch and finetune on top of the provided checkpoints trained for osteoclast and nuclei detection as proposed in our [paper]().
+NOISe builds on top of [YOLOv8](https://github.com/ultralytics/ultralytics) for the task of osteoclast instance segmentation. This repository contains training, validation, and inference scripts to train an instance segmentation model from scratch and finetune on top of the provided checkpoints trained for osteoclast and nuclei detection as proposed in our [paper](https://arxiv.org/pdf/2404.10130.pdf):
+
+Manne, S.K.R., Martin, B., Roy, T., Neilson, R., Peters, R., Chillara, M., Lary, C.W., Motyl, K.J., Wan, M., "NOISe: Nuclei-Aware Osteoclast Instance Segmentation for Mouse-to-Human Domain Transfer.” IEEE/CVF Conference on Computer Vision and Pattern Recognition 2024 (CVPR 2024), Workshop on Computer Vision for Microscopy Image Analysis (CVMI).
 
 <details open>
 <summary>Install</summary>
 
 Pip install the ultralytics package including all [requirements](https://github.com/ultralytics/ultralytics/blob/main/pyproject.toml) in a [**Python>=3.8**](https://www.python.org/) environment with [**PyTorch>=1.8**](https://pytorch.org/get-started/locally/).
-
-[![PyPI version](https://badge.fury.io/py/ultralytics.svg)](https://badge.fury.io/py/ultralytics) [![Downloads](https://static.pepy.tech/badge/ultralytics)](https://pepy.tech/project/ultralytics)
 
 ```bash
 pip install ultralytics
@@ -43,14 +43,14 @@ noise
 ```
 
 ## Whole Slide Inference
-Instance segmentation prediction can be done for a whole slide image by creating overlapping patches of ```832x832``` resolution, that are then merged to generate a full-scale output. Different models trained on various configurations of data are available [here](https://drive.google.com/drive/folders/1pHpwhwJSKN47Dbtcy92F2XHydpURMb4O?usp=drive_link).
+Instance segmentation prediction can be done for a whole slide image by creating overlapping patches of ```832x832``` resolution, that are then merged to generate a full-scale output. Different models trained on various configurations of data are available [here](https://drive.google.com/drive/folders/1pHpwhwJSKN47Dbtcy92F2XHydpURMb4O?usp=drive_link). Please download the checkpoints and place them in the checkpoints folder.
 
-| Model Name                   | Info                                                                                           |
-| ---------------------------- | ---------------------------------------------------------------------------------------------- |
-| `yolo_mouse_ins.pt`          | YOLOv8 model trained on entire mouse data for osteoclast instance segmentation                 |
-| `yolo_mouse_det_pretrain.pt` | NOISE pretrain - YOLOv8 model trained on entire mouse data for osteoclast and nuclei detection |
-| `noise_h1_ins_finetune.pt`   | NOISe model finetuned on H1 dataset for osteoclast instance segmentation                       |
-| `noise_h2_ins_finetune.pt`   | NOISe model finetuned on H2 dataset for osteoclast instance segmentation                       |
+| Model Name                                | Info                                                                                           | Recommendation                         
+| ----------------------------------------- | ---------------------------------------------------------------------------------------------- | --------------------------------------------
+| `yolo_mouse_ins.pt` (YOLOv8 M→M)          | YOLOv8 model trained on entire mouse data for osteoclast instance segmentation                 | Recommended model to test on mouse data             |
+| `yolo_mouse_det_pretrain.pt`              | NOISE pretrain - YOLOv8 model trained on entire mouse data for osteoclast and nuclei detection | Recommended model to finetune on new data           |
+| `noise_h1_ins_finetune.pt` (NOISE H→H)    | NOISe model finetuned on H1 dataset for osteoclast instance segmentation                       | Recommended model to test new human osteoclast data |
+| `noise_h2_ins_finetune.pt` (NOISE H→H)    | NOISe model finetuned on H2 dataset for osteoclast instance segmentation                       | Recommended model to test new human osteoclast data |
 
 ```
 python wsi_inference.py path/to/checkpoint.pt path/to/images
@@ -65,11 +65,21 @@ Training from scratch or finetuning a specific checkpoint can be done using the 
 python train.py --ckpt path/to/checkpoint.pt
 ```
 
+Sample command to train YOLOv8 M→H model:
+```
+python train.py --ckpt checkpoints/yolo_mouse_det_pretrain.pt --data ./osteo.yaml --name YOLOv8MH
+```
+
 ## Validation
 Running evaluation on test data can be done using the following command:
 
 ```
 python val.py --ckpt path/to/checkpoint.pt
+```
+
+Sample command to validate the YOLOv8 M→M model:
+```
+python train.py --ckpt checkpoints/yolo_mouse_ins.pt --data ./osteo.yaml
 ```
 
 ## Training on your data
