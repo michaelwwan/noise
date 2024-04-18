@@ -113,4 +113,12 @@ NOISe is largely based on [YOLOv8](https://github.com/ultralytics/ultralytics).
 ## Citation
 If you find the dataset, model weights, or the code useful for your work, please consider citing us:
 ```
+@InProceedings{ManneMartin_2023_CVPR,
+    author    = {Manne, S.K.R. and Martin, B. and Roy, T. and Neilson, R. and Peters, R. and Chillara, M. and Lary, C.W. and Motyl, K.J. and Wan, M.},
+    title     = {NOISe: Nuclei-Aware Osteoclast Instance Segmentation for Mouse-to-Human Domain Transfer},
+    booktitle = {Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR) Workshops},
+    month     = {June},
+    year      = {2024}
+}
 ```
+Note that the first two authors contributed equally.
