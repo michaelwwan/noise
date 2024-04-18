@@ -47,10 +47,10 @@ Instance segmentation prediction can be done for a whole slide image by creating
 
 | Model Name                                | Info                                                                                           | Recommendation                         
 | ----------------------------------------- | ---------------------------------------------------------------------------------------------- | --------------------------------------------
-| `yolo_mouse_ins.pt` (YOLOv8 M→M)          | YOLOv8 model trained on entire mouse data for osteoclast instance segmentation                 | Recommended model to test on mouse data             |
+| `yolo_mouse_ins.pt` <br/> (YOLOv8 M→M)          | YOLOv8 model trained on entire mouse data for osteoclast instance segmentation                 | Recommended model to test on mouse data             |
 | `yolo_mouse_det_pretrain.pt`              | NOISE pretrain - YOLOv8 model trained on entire mouse data for osteoclast and nuclei detection | Recommended model to finetune on new data           |
-| `noise_h1_ins_finetune.pt` (NOISE H→H)    | NOISe model finetuned on H1 dataset for osteoclast instance segmentation                       | Recommended model to test new human osteoclast data |
-| `noise_h2_ins_finetune.pt` (NOISE H→H)    | NOISe model finetuned on H2 dataset for osteoclast instance segmentation                       | Recommended model to test new human osteoclast data |
+| `noise_h1_ins_finetune.pt`<br/> (NOISE H→H)    | NOISe model finetuned on H1 dataset for osteoclast instance segmentation                       | Recommended model to test new human osteoclast data |
+| `noise_h2_ins_finetune.pt` <br/> (NOISE H→H)    | NOISe model finetuned on H2 dataset for osteoclast instance segmentation                       | Recommended model to test new human osteoclast data |
 
 ```
 python wsi_inference.py path/to/checkpoint.pt path/to/images
