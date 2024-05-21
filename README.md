@@ -52,11 +52,17 @@ Instance segmentation prediction can be done for a whole slide image by creating
 | `noise_h1_ins_finetune.pt`<br/> (NOISE H→H)    | NOISe model finetuned on H1 dataset for osteoclast instance segmentation                       | Recommended model to test new human osteoclast data |
 | `noise_h2_ins_finetune.pt` <br/> (NOISE H→H)    | NOISe model finetuned on H2 dataset for osteoclast instance segmentation                       | Recommended model to test new human osteoclast data |
 
+Inference can be performed with the following command.
+
 ```
-python wsi_inference.py path/to/checkpoint.pt path/to/images
+python wholeslide_inference.py --model_path path/to/checkpoint.pt --img_foldername path/to/images --out_foldername path/to/output --ratio r --device dev
 ```
 
-Outputs will be stored in ```path/to/output```.
+Set ```--ratio``` to the appropriate $\omega m / pixel$ ratio for your dataset; the image will be patched accordingly, and the patches will then be scaled to  832x832 pixel resolution. The training dataset of our images used a ratio of 0.7784.
+
+You can select a cuda device (default is the cpu) to use for inference with ```--device```.
+
+Outputs will be stored in ```path/to/output```. The output for each image consists of a text file containing all predicted bounding boxes, objectness scores, and segmentation masks as well as an image representing these same results.
 
 ## Training
 Training from scratch or finetuning a specific checkpoint can be done using the following command:
