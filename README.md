@@ -58,7 +58,7 @@ Inference can be performed with the following command.
 python wholeslide_inference.py --model_path path/to/checkpoint.pt --img_foldername path/to/images --out_foldername path/to/output --ratio r --device dev
 ```
 
-Set ```--ratio``` to the appropriate $\omega m / pixel$ ratio for your dataset; the image will be patched accordingly, and the patches will then be scaled to  832x832 pixel resolution. The training dataset of our images used a ratio of 0.7784.
+Set ```--ratio``` to the appropriate $\mu m / pixel$ ratio for your dataset; the image will be patched accordingly, and the patches will then be scaled to  832x832 pixel resolution. The training dataset of our images used a ratio of 0.7784.
 
 You can select a cuda device (default is the cpu) to use for inference with ```--device```.
 
