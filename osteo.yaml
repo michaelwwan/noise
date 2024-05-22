@@ -1,7 +1,7 @@
 path: ./dataset
 # fold-1
-train: [M2, M3, M4, M5]
-val: [M1]
+train: [m2, m3, m4, m5]
+val: [m1]
 
 # Classes
 names:
