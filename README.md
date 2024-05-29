@@ -14,7 +14,11 @@ Manne, S.K.R., Martin, B., Roy, T., Neilson, R., Peters, R., Chillara, M., Lary,
 
 Pip install the ultralytics package including all [requirements](https://github.com/ultralytics/ultralytics/blob/main/pyproject.toml) in a [**Python>=3.8**](https://www.python.org/) environment with [**PyTorch>=1.8**](https://pytorch.org/get-started/locally/).
 
+Below verified setup uses Pytorch 2.3 with CUDA 12.1 support:
 ```bash
+conda create --name noise python=3.8
+conda activate noise
+conda install pytorch torchvision torchaudio pytorch-cuda=12.1 -c pytorch -c nvidia
 pip install ultralytics
 ```
 
@@ -41,6 +45,8 @@ noise
             |-- labels
     |...
 ```
+
+Update the dataset folder absolute path in ```osteo.yaml``` accordingly.
 
 ## Whole Slide Inference
 Instance segmentation prediction can be done for a whole slide image by creating overlapping patches of ```832x832``` resolution, that are then merged to generate a full-scale output. Different models trained on various configurations of data are available [here](https://drive.google.com/drive/folders/1pHpwhwJSKN47Dbtcy92F2XHydpURMb4O?usp=drive_link). Please download the checkpoints and place them in the checkpoints folder.
