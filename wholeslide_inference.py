@@ -107,10 +107,10 @@ def inference(model, img, img_filename, size, out_dir):
     mask_results.append( [[] for _ in range(0, img.size[1], size//2)] )
     mask_results[-1] += [[], []]
     
-    for y0 in range(0, img.size[1], size//2)[:4]:
+    for y0 in range(0, img.size[1], size//2):
         box_results.append([ empty_tensor ])
         mask_results.append([ [] ])
-        for x0 in range(0, img.size[0], size//2)[:4]:
+        for x0 in range(0, img.size[0], size//2):
             x1, y1 = x0+size, y0+size
             
             # save crops
@@ -224,7 +224,7 @@ def main(argv):
     model = YOLO(model_path)
         
     img_files = [ file for file in os.listdir(img_dir) if not file.startswith(".") ]
-    for img_filename in img_files[:1]:
+    for img_filename in img_files:
         print(img_filename)
         
         img = Image.open( os.path.join(img_dir, img_filename) )
