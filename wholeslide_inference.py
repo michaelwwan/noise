@@ -102,9 +102,9 @@ def inference(model, img, img_filename, size, out_dir):
     mask_results = []
 
     
-    box_results.append( [empty_tensor for _ in range(0, img.size[1], size//2)] )
+    box_results.append( [empty_tensor for _ in range(0, img.size[0], size//2)] )
     box_results[-1] += [empty_tensor, empty_tensor]
-    mask_results.append( [[] for _ in range(0, img.size[1], size//2)] )
+    mask_results.append( [[] for _ in range(0, img.size[0], size//2)] )
     mask_results[-1] += [[], []]
     
     for y0 in range(0, img.size[1], size//2):
@@ -137,9 +137,9 @@ def inference(model, img, img_filename, size, out_dir):
         box_results[-1].append( empty_tensor )
         mask_results[-1].append( [] )
     
-    box_results.append( [empty_tensor for _ in range(0, img.size[1], size//2)] )
+    box_results.append( [empty_tensor for _ in range(0, img.size[0], size//2)] )
     box_results[-1] += [empty_tensor, empty_tensor]
-    mask_results.append( [[] for _ in range(0, img.size[1], size//2)] )
+    mask_results.append( [[] for _ in range(0, img.size[0], size//2)] )
     mask_results[-1] += [[], []]
     
     objects_found = True if box_results else False
@@ -154,7 +154,7 @@ def inference(model, img, img_filename, size, out_dir):
                 # If empty
                 if torch.numel(box_results[r][c])==0:
                     continue
-                    
+                
                 output = local_nms([ b[c-1:c+2] for b in box_results[r-1:r+2] ], [ m[c-1:c+2] for m in mask_results[r-1:r+2] ])
                 
                 new_box_results.append(output[0])
