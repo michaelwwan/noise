@@ -26,6 +26,32 @@ For alternative installation methods including [Conda](https://anaconda.org/cond
 
 </details>
 
+## Quickstart Guide: Whole Slide Inference 
+This section will walk you through applying one of our osteoclast instange segmentation models on your own whole slide or well images, without needing to do any machine learning training, and with minimal setup and computing requirements. Internally, our script will break your image down into overlapping ```832x832``` resolution patches, apply the specific instance segmentation model on those patches, and then intelligently merge the results to generate results for your original image. 
+
+You do need to download the model "checkpoint" corresponding to the model you want to run, and place it in a `/checkpoint` directory. You can follow our recommendations below for which model to use, or take a look at our [paper](https://arxiv.org/pdf/2404.10130.pdf) for more information about each model.
+
+| Model Name                                | Info                                                                                           | Recommendation                         
+| ----------------------------------------- | ---------------------------------------------------------------------------------------------- | --------------------------------------------
+| `yolo_mouse_ins.pt` <br/> (YOLOv8 M→M)          | YOLOv8 model trained on entire mouse data for osteoclast instance segmentation                 | Ideal for detecting osteoclasts in new mouse well images            |
+| `yolo_mouse_det_pretrain.pt`              | NOISE pretrain - YOLOv8 model trained on entire mouse data for osteoclast and nuclei detection | Ideal starting point if you want to train on your own annotated data  |
+| `noise_h1_ins_finetune.pt`<br/> (NOISE H→H)    | NOISe model finetuned on H1 dataset for osteoclast instance segmentation                       | Ideal for detecting osteoclasts in new human well images |
+| `noise_h2_ins_finetune.pt` <br/> (NOISE H→H)    | NOISe model finetuned on H2 dataset for osteoclast instance segmentation                       | Ideal for detecting osteoclasts in new human well images (alternative) |
+
+"New" data means images not drawn from our own mouse and human datasets, as described in our paper. (If you want to test these models on our datasets, then you should take that you are not using a model that was trained on that very same data. But for new data, this is not a problem.)
+
+Inference can be performed with the following command.
+
+```
+python wholeslide_inference.py --model_path path/to/checkpoint.pt --img_foldername path/to/images --out_foldername path/to/output --ratio r --device dev
+```
+
+Set ```--ratio``` to the appropriate $\mu m / pixel$ ratio for your dataset; the image will be patched accordingly, and the patches will then be scaled to  832x832 pixel resolution. The training dataset of our images used a ratio of 0.7784.
+
+You can select a cuda device (default is the cpu) to use for inference with ```--device```.
+
+Outputs will be stored in ```path/to/output```. The output for each image consists of a text file containing all predicted bounding boxes, objectness scores, and segmentation masks as well as an image representing these same results.
+
 ## Dataset
 Our dataset consists of full slide images and corresponding instance segmentation annotations, along with patches used for training and validation in our experiments. Please download the dataset from [here](https://drive.google.com/drive/folders/1hwGVKH4pN1Ftcl9bDKUykTIU8mcZfmiu?usp=drive_link), unzip the data and place it in the dataset folder with the following folder structure:
 
@@ -47,28 +73,6 @@ noise
 ```
 
 Update the dataset folder absolute path in ```osteo.yaml``` accordingly.
-
-## Whole Slide Inference
-Instance segmentation prediction can be done for a whole slide image by creating overlapping patches of ```832x832``` resolution, that are then merged to generate a full-scale output. Different models trained on various configurations of data are available [here](https://drive.google.com/drive/folders/1pHpwhwJSKN47Dbtcy92F2XHydpURMb4O?usp=drive_link). Please download the checkpoints and place them in the checkpoints folder.
-
-| Model Name                                | Info                                                                                           | Recommendation                         
-| ----------------------------------------- | ---------------------------------------------------------------------------------------------- | --------------------------------------------
-| `yolo_mouse_ins.pt` <br/> (YOLOv8 M→M)          | YOLOv8 model trained on entire mouse data for osteoclast instance segmentation                 | Recommended model to test on mouse data             |
-| `yolo_mouse_det_pretrain.pt`              | NOISE pretrain - YOLOv8 model trained on entire mouse data for osteoclast and nuclei detection | Recommended model to finetune on new data           |
-| `noise_h1_ins_finetune.pt`<br/> (NOISE H→H)    | NOISe model finetuned on H1 dataset for osteoclast instance segmentation                       | Recommended model to test new human osteoclast data |
-| `noise_h2_ins_finetune.pt` <br/> (NOISE H→H)    | NOISe model finetuned on H2 dataset for osteoclast instance segmentation                       | Recommended model to test new human osteoclast data |
-
-Inference can be performed with the following command.
-
-```
-python wholeslide_inference.py --model_path path/to/checkpoint.pt --img_foldername path/to/images --out_foldername path/to/output --ratio r --device dev
-```
-
-Set ```--ratio``` to the appropriate $\mu m / pixel$ ratio for your dataset; the image will be patched accordingly, and the patches will then be scaled to  832x832 pixel resolution. The training dataset of our images used a ratio of 0.7784.
-
-You can select a cuda device (default is the cpu) to use for inference with ```--device```.
-
-Outputs will be stored in ```path/to/output```. The output for each image consists of a text file containing all predicted bounding boxes, objectness scores, and segmentation masks as well as an image representing these same results.
 
 ## Training
 Training from scratch or finetuning a specific checkpoint can be done using the following command:
