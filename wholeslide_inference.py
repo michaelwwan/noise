@@ -159,18 +159,25 @@ def inference(model, img, img_filename, size, out_dir):
                 
                 new_box_results.append(output[0])
                 new_mask_results += output[1]
-                
-        box_results = torch.cat(new_box_results)
-        mask_results = new_mask_results
-        
+
+        # If no osteoclasts are detected in image, this will handle the output
+        if len(new_box_results) > 0:
+            box_results = torch.cat(new_box_results)
+            mask_results = new_mask_results
+        else:
+            box_results = [0]
+            mask_results = new_mask_results
+
     
     with open("{f}/{id}".format(f=out_dir, id=img_filename[:-4]+".txt"), 'w', newline='') as f:
         writer = csv.writer(f, delimiter=',')
         writer.writerow( ["box_x1","box_y1","box_x2","box_y2","objectness_score","mask_x1","mask_y1","mask_x2","mask_y2","..."] )
-        for i in range(len(box_results)):
-            writer.writerow( box_results[i].tolist()[:-1] + mask_results[i].flatten().tolist() )
-            
-    
+        if (len(box_results)) > 1:
+            for i in range(len(box_results)):
+                writer.writerow( box_results[i].tolist()[:-1] + mask_results[i].flatten().tolist() )
+        else:
+             return f.write("No osteoclasts detected")
+
     # Draw boxes on original image
     img1 = ImageDraw.Draw(img, 'RGBA')
     
@@ -190,6 +197,24 @@ def inference(model, img, img_filename, size, out_dir):
         return [{"boxes":box_results[:,:4], "scores":box_results[:,4], "labels":box_results[:,5].int()}]
     else:
         return [{"boxes":[], "scores":[], "labels":[]}]
+    
+def count_ocls_from_output(out_dir):
+    
+    # This script will count each newline for the files in the output directory
+
+    #This will save the output_files to a list from the output directory and only include the txt files
+    output_files = glob.glob((out_dir) + "*.txt")
+
+    #To iterate over each file in that output directory
+    for file in output_files:
+        with open(file, "r") as f: # f is now the object of each file
+            as_string = str(f.read())
+            split_string = as_string.split("\n")
+            count_value = (len(split_string[1:-1]))
+            with open("ocl_counts.txt", "a") as file:
+                file.write("{id}".format(id=f.name[:-4]) + ": " + str(count_value) + "\n")
+            file.close
+
 
 def main(argv):
     
@@ -208,7 +233,7 @@ def main(argv):
     
     out_dir = args.out_foldername
     img_dir = args.img_foldername
-    
+
     global DEVICE
     DEVICE = torch.device(args.device)
     
@@ -230,10 +255,12 @@ def main(argv):
         img = Image.open( os.path.join(img_dir, img_filename) )
         
         pred = inference(model, img, img_filename, patch_size, out_dir)
+
+    
+    count_ocls_from_output(out_dir)
         
     
     return
-    
     
 
 if __name__ == '__main__':
