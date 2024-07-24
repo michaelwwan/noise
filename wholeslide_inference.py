@@ -47,48 +47,40 @@ def box_inter_union(boxes1, boxes2):
     
 def local_nms(box_results, mask_results):
 
-    if box_results[1][1].numel() == 0:
-        return torch.tensor([], device=DEVICE), []
-    
     keep_bool_master = []
-    tmp_boxes = []
-
-    tmp_boxes.append(box_results[0][0])
-    tmp_boxes.append(box_results[0][1])
-    tmp_boxes.append(box_results[0][2])
-    tmp_boxes.append(box_results[1][0])
-
-    tmp_boxes.append(box_results[1][2])
-    tmp_boxes.append(box_results[2][0])
-    tmp_boxes.append(box_results[2][1])
-    tmp_boxes.append(box_results[2][2])
-    tmp_boxes_torch = torch.cat(tmp_boxes)
+    
+    # Collate predictions from neighboring crops
+    boxes_torch = torch.cat( [ box_results[r][c] for r,c in zip([0,0,0,1,1,2,2,2],[0,1,2,0,2,0,1,2]) ] )
     
     # If no neighboring predictions, skip
-    if torch.numel(tmp_boxes_torch)==0:
+    if torch.numel(boxes_torch)==0:
         return torch.tensor([], device=DEVICE), []
     
     for box in box_results[1][1]:
-        intersection = box_inter_union(box[:4].unsqueeze(0), tmp_boxes_torch[:,:4])[0]
-
+        
+        intersection = box_inter_union(box[:4].unsqueeze(0), boxes_torch[:,:4])[0]
         surf_area = torchvision.ops.box_area( box[:4].unsqueeze(0) )[0]
-        comp = ((surf_area - intersection)/surf_area) < 0.1
-        if torch.any( comp ):
-            area = torchvision.ops.box_area( tmp_boxes_torch[comp[0],:4] )
-            # If boxes overlap significantly, keep larger box
-            if torch.all(surf_area > area):
+        sig_overlap = ((surf_area - intersection)/surf_area) < 0.1
+        
+        # If center box significantly overlaps any neighboring box
+        if torch.any( sig_overlap ):
+            neighboring_areas = torchvision.ops.box_area( boxes_torch[sig_overlap[0],:4] )
+            
+            # Keep center box if its larger than all boxes
+            if torch.all(surf_area > neighboring_areas):
                 keep_bool_master.append( True )
             else:
                 keep_bool_master.append( False )
-        else:
+        else: # If no significant overlap, keep box
             keep_bool_master.append( True )
         
-        
+    # If no predictions remain
     if not any(keep_bool_master):
         return torch.tensor([], device=DEVICE), []
     
+    # Collate large non-overlapping predictions
     box_results = box_results[1][1][keep_bool_master]
-    mask_results = [ mask_results[1][1][i] for i in range(len(keep_bool_master)) if keep_bool_master[i] ]
+    mask_results = [ mask_results[1][1][i] for i,val in enumerate(keep_bool_master) if val ]
     return box_results, mask_results
     
 def inference(model, img, img_filename, size, out_dir):
@@ -100,17 +92,14 @@ def inference(model, img, img_filename, size, out_dir):
     # Run inference on each image
     box_results = []
     mask_results = []
-
     
-    box_results.append( [empty_tensor for _ in range(0, img.size[0], size//2)] )
-    box_results[-1] += [empty_tensor, empty_tensor]
-    mask_results.append( [[] for _ in range(0, img.size[0], size//2)] )
-    mask_results[-1] += [[], []]
+    row_range = 2 + img.size[1]//(size//2)
+    col_range = int( 2 + img.size[0]//(size//2) )
+    box_results = [ [empty_tensor for _ in range(col_range)] for _ in range(row_range) ]
+    mask_results= [ [[] for _ in range(col_range)] for _ in range(row_range) ]
     
-    for y0 in range(0, img.size[1], size//2):
-        box_results.append([ empty_tensor ])
-        mask_results.append([ [] ])
-        for x0 in range(0, img.size[0], size//2):
+    for yi, y0 in enumerate( range(0, img.size[1], size//2) ):
+        for xi, x0 in enumerate( range(0, img.size[0], size//2) ):
             x1, y1 = x0+size, y0+size
             
             # save crops
@@ -125,37 +114,31 @@ def inference(model, img, img_filename, size, out_dir):
             for r in range(len(results)):
                 boxes = results[r].boxes.data.clone()
                 
-                if boxes.numel() != 0: # if osteoclasts detected
-                    boxes = scale_boxes(boxes, num_patches, img_ind, (size,size))
-                    masks = scale_masks(results[r].masks.xy, num_patches, img_ind, np.array((size,size)))
-                    box_results[-1].append( boxes )
-                    mask_results[-1].append( masks )
+                # If osteoclasts detected, scale/translate prediction to original image size
+                if boxes.numel() != 0:
+                    box_results[yi+1][xi+1] = scale_boxes( boxes, num_patches, img_ind, (size,size) )
+                    mask_results[yi+1][xi+1]= scale_masks( results[r].masks.xy, num_patches, img_ind, np.array((size,size)) )
                 else:
-                    box_results[-1].append( empty_tensor )
-                    mask_results[-1].append( [] )
-                    
-        box_results[-1].append( empty_tensor )
-        mask_results[-1].append( [] )
-    
-    box_results.append( [empty_tensor for _ in range(0, img.size[0], size//2)] )
-    box_results[-1] += [empty_tensor, empty_tensor]
-    mask_results.append( [[] for _ in range(0, img.size[0], size//2)] )
-    mask_results[-1] += [[], []]
+                    box_results[yi+1][xi+1] = empty_tensor
+                    mask_results[yi+1][xi+1]= []
+                 
     
     objects_found = True if box_results else False
     
+    '''Collate object predictions while removing overlapping duplicates'''
     if objects_found:
     
         new_box_results = []
         new_mask_results = []
+        # Loop over 3x3 squares of neighboring crops
         for r in range(1,len(box_results)-1):
             for c in range(1,len(box_results[r])-1):
                 
-                # If empty
+                # If central crop produced no predictions
                 if torch.numel(box_results[r][c])==0:
                     continue
                 
-                output = local_nms([ b[c-1:c+2] for b in box_results[r-1:r+2] ], [ m[c-1:c+2] for m in mask_results[r-1:r+2] ])
+                output = local_nms( [ b[c-1:c+2] for b in box_results[r-1:r+2] ], [ m[c-1:c+2] for m in mask_results[r-1:r+2] ] )
                 
                 new_box_results.append(output[0])
                 new_mask_results += output[1]
@@ -168,7 +151,7 @@ def inference(model, img, img_filename, size, out_dir):
             box_results = [0]
             mask_results = new_mask_results
 
-    
+    '''Save text output'''
     with open("{f}/{id}".format(f=out_dir, id=img_filename[:-4]+".txt"), 'w', newline='') as f:
         writer = csv.writer(f, delimiter=',')
         writer.writerow( ["box_x1","box_y1","box_x2","box_y2","objectness_score","mask_x1","mask_y1","mask_x2","mask_y2","..."] )
@@ -178,14 +161,13 @@ def inference(model, img, img_filename, size, out_dir):
         else:
              return f.write("No osteoclasts detected")
 
-    # Draw boxes on original image
+    '''Save visual output'''
     img1 = ImageDraw.Draw(img, 'RGBA')
     
     for i, box in enumerate(box_results):
         box = box[:4].type(torch.int)
         shape = [(box[0], box[1]), (box[2], box[3])]
         img1.rectangle(shape, outline="green", width=3)
-        # print(mask_results[i].astype(int).flatten().tolist())
         mask = mask_results[i].astype(int).flatten().tolist()
         if len(mask) >= 6:
             color = (randint(0,255),randint(0,255),randint(0,255))
