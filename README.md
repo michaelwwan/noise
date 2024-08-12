@@ -31,14 +31,17 @@ This section will walk you through applying one of our osteoclast instange segme
 
 You do need to download the model "checkpoint" corresponding to the model you want to run, and place it in a `/checkpoint` directory. You can follow our recommendations below for which model to use, or take a look at our [paper](https://arxiv.org/pdf/2404.10130.pdf) for more information about each model.
 
-| Model Name                                | Info                                                                                           | Recommendation                         
-| ----------------------------------------- | ---------------------------------------------------------------------------------------------- | --------------------------------------------
-| `yolo_mouse_ins.pt` <br/> (YOLOv8 M→M)          | YOLOv8 model trained on entire mouse data for osteoclast instance segmentation                 | Ideal for detecting osteoclasts in new mouse well images            |
-| `yolo_mouse_det_pretrain.pt`              | NOISE pretrain - YOLOv8 model trained on entire mouse data for osteoclast and nuclei detection | Ideal starting point if you want to train on your own annotated data  |
-| `noise_h1_ins_finetune.pt`<br/> (NOISE H→H)    | NOISe model finetuned on H1 dataset for osteoclast instance segmentation                       | Ideal for detecting osteoclasts in new human well images |
-| `noise_h2_ins_finetune.pt` <br/> (NOISE H→H)    | NOISe model finetuned on H2 dataset for osteoclast instance segmentation                       | Ideal for detecting osteoclasts in new human well images (alternative) |
-
-"New" data means images not drawn from our own mouse and human datasets, as described in our paper. (If you want to test these models on our datasets, then you should take that you are not using a model that was trained on that very same data. But for new data, this is not a problem.)
+| Experiment | Model Filename | Description | Use This Model For ... | Old Filename | 
+| ----- | ----- | ----- | ----- | -----|
+| YOLOv8 M→M | `yolo_m1234.pt` | YOLOv8 model trained on M1, M2, M3, M4 | | |
+| YOLOv8 M→M | `yolo_m1235.pt` | YOLOv8 model trained on M1, M2, M3, M5 | |
+| YOLOv8 M→M | `yolo_m1245.pt` | YOLOv8 model trained on M1, M2, M4, M5 | |
+| YOLOv8 M→M | `yolo_m1345.pt` | YOLOv8 model trained on M1, M3, M4, M5 | |
+| YOLOv8 M→M | `yolo_m2345.pt` | YOLOv8 model trained on M2, M3, M4, M5 | **Mouse osteoclast instance segmentation** (use this, or any of the other four YOLOv8 M→M models above) | `yolo_mouse_ins.pt` |
+| NOISe M→H and H→H | `yolo_m_det_only.pt` | YOLOv8 model trained on mouse osteoclast & nuclei bounding boxes for detection only, used as multiclass pretraining step in the NOISe models  | Developing a NOISe model in a new domain (by fine-tuning this on instance segmentation masks in that domain) | `yolo_mouse_det_pretrain.pt` |
+| NOISe M→H | `noise_m.pt` | NOISe model trained on M1–5 (i.e., `yolo_m_det_only.pt`, fine-tuned on M1–5 instance segmentation masks) | **Mouse, human, or new domain osteoclast instance segmentaion** (try this alongside the other recommended models) | |
+| NOISe H→H | `noise_m_h1.pt` | NOISe model trained on H1 (i.e., `yolo_m_det_only.pt`, fine-tuned on H1 instance segmentation masks) | **Human osteoclast instance segmentation** (use this, or the NOISe H→H model below)  | `noise_h1_ins_finetune.pt` |
+| NOISe H→H | `noise_m_h1.pt` | NOISe model trained on H2 (i.e., `yolo_m_det_only.pt`, fine-tuned on H2 instance segmentation masks) | | `noise_h2_ins_finetune.pt` |
 
 Inference can be performed with the following command.
 
@@ -81,9 +84,9 @@ Training from scratch or finetuning a specific checkpoint can be done using the 
 python train.py --ckpt path/to/checkpoint.pt
 ```
 
-Sample command to train YOLOv8 M→H model:
+Sample command to train a YOLOv8 M→H model:
 ```
-python train.py --ckpt checkpoints/yolo_mouse_det_pretrain.pt --data ./osteo.yaml --name YOLOv8MH
+python train.py --ckpt checkpoints/yolo_m_det_only.pt --data ./osteo.yaml --name YOLOv8MH
 ```
 
 ## Validation
@@ -93,9 +96,9 @@ Running evaluation on test data can be done using the following command:
 python val.py --ckpt path/to/checkpoint.pt
 ```
 
-Sample command to validate the YOLOv8 M→M model:
+Sample command to validate a YOLOv8 M→M model:
 ```
-python train.py --ckpt checkpoints/yolo_mouse_ins.pt --data ./osteo.yaml
+python train.py --ckpt checkpoints/yolo_m2345.pt --data ./osteo.yaml
 ```
 
 ## Training on your data
