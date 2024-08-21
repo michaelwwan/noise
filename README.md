@@ -46,12 +46,14 @@ You do need to download the model "checkpoint" corresponding to the model you wa
 Inference can be performed with the following command.
 
 ```
-python wholeslide_inference.py --model_path path/to/checkpoint.pt --img_foldername path/to/images --out_foldername path/to/output --ratio r --device dev
+python wholeslide_inference.py --model_path path/to/checkpoint.pt --img_foldername path/to/images --out_foldername path/to/output
 ```
 
-Set ```--ratio``` to the appropriate $\mu m / pixel$ ratio for your dataset; the image will be patched accordingly, and the patches will then be scaled to  832x832 pixel resolution. The training dataset of our images used a ratio of 0.7784.
+You can include ```--ratio r``` to set the μm/pixel ratio ```r``` for your dataset. The default value is the ratio for our training images, 0.7784 μm/pixel. We use this to scale the pixel size of the underlying square patches in which inference is performed, which are 832 × 832 by default, so that the side length always corresponds to the true length of ~647.7 μm = 832 pixels × 0.7784 μm/pixel. 
 
-You can select a cuda device (default is the cpu) to use for inference with ```--device```.
+Our patches were chosen in order to dwarf the size of most osteoclasts in our training data, but detection can struggle when there are large osteoclasts with sizes comparable to our patch size of ~647.7 μm. We found that artificially reducing ```r``` can serve as a quick workaround: for instance, setting ```r``` to half of its true value (0.3892 μm/pixel, for us), tricks the algorithm into thinking that the osteoclasts are only half of their actual size, so more of them can fit into the patches. This is not an ideal solution by any means, since the underlying data (osteoclast incidence and appearance) is not really scale invariant, but it seems to work reasonably well for ~2× adjustments.
+
+You can select a CUDA device, e.g. with ```--device cuda``, but otherwise inference will run on a cpu by default.
 
 Outputs will be stored in ```path/to/output```. The output for each image consists of a text file containing all predicted bounding boxes, objectness scores, and segmentation masks as well as an image representing these same results.
 
