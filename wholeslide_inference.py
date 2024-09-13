@@ -2,7 +2,7 @@ import os, sys
 import glob
 from ultralytics import YOLO
 import csv
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFont
 import numpy as np
 from random import randint
 import torch
@@ -45,7 +45,7 @@ def box_inter_union(boxes1, boxes2):
 
     return inter, union
     
-def local_nms(box_results, mask_results):
+def local_nms(box_results, mask_results, img_size): # Non-maximum suppression for patch results
 
     if box_results[1][1].numel() == 0:
         return torch.tensor([], device=DEVICE), []
@@ -76,7 +76,10 @@ def local_nms(box_results, mask_results):
         if torch.any( comp ):
             area = torchvision.ops.box_area( tmp_boxes_torch[comp[0],:4] )
             # If boxes overlap significantly, keep larger box
-            if torch.all(surf_area > area):
+            if (torch.all(surf_area > area) \
+                and (box[0] < img_size[0]) \
+                and (box[1] < img_size[1])):
+                # Also checks that the box starts inside the original image
                 keep_bool_master.append( True )
             else:
                 keep_bool_master.append( False )
@@ -92,6 +95,7 @@ def local_nms(box_results, mask_results):
     return box_results, mask_results
     
 def inference(model, img, img_filename, size, out_dir):
+    
     empty_tensor = torch.tensor([], device=DEVICE)
     
     # divide size of image by size of patch/2
@@ -107,14 +111,28 @@ def inference(model, img, img_filename, size, out_dir):
     mask_results.append( [[] for _ in range(0, img.size[0], size//2)] )
     mask_results[-1] += [[], []]
     
+    patches = [] # For debugging
+    
     for y0 in range(0, img.size[1], size//2):
         box_results.append([ empty_tensor ])
         mask_results.append([ [] ])
         for x0 in range(0, img.size[0], size//2):
+            
             x1, y1 = x0+size, y0+size
             
-            # save crops
-            img_crop = img.crop((x0,y0,x1,y1))
+            patches += [[x0, y0, x1, y1]] # For visualizing crop grid later
+            
+            # Create crops (pasting onto blank white image, since the default
+            # PIL crop function fills with black, causing false detections):
+            img_crop = Image.new('RGB', (size, size), (255, 255, 255))
+            img_crop.paste(img, (-x0, -y0))
+            
+            # # Old cropping function (default black fill caused bad detections):
+            # img_crop = img.crop((x0,y0,x1,y1))
+            
+            # # Save cropped images for debugging:
+            # img_crop.save( "{f}/{a}_{b}_{id}".format(f=out_dir, a = str(x0), b = str(y0), id=img_filename) )
+            
             yc=math.ceil(y0/(size//2))
             xc=math.ceil(x0/(size//2))
             
@@ -155,7 +173,9 @@ def inference(model, img, img_filename, size, out_dir):
                 if torch.numel(box_results[r][c])==0:
                     continue
                 
-                output = local_nms([ b[c-1:c+2] for b in box_results[r-1:r+2] ], [ m[c-1:c+2] for m in mask_results[r-1:r+2] ])
+                output = local_nms([ b[c-1:c+2] for b in box_results[r-1:r+2] ], [ m[c-1:c+2] for m in mask_results[r-1:r+2] ], img.size)
+                
+                # print(r, c, output[0], '\n')
                 
                 new_box_results.append(output[0])
                 new_mask_results += output[1]
@@ -180,16 +200,25 @@ def inference(model, img, img_filename, size, out_dir):
 
     # Draw boxes on original image
     img1 = ImageDraw.Draw(img, 'RGBA')
+    font = ImageFont.load_default(20)
     
     for i, box in enumerate(box_results):
         box = box[:4].type(torch.int)
-        shape = [(box[0], box[1]), (box[2], box[3])]
-        img1.rectangle(shape, outline="green", width=3)
+        
+        # The min/max modifiers seem to help boxes on the edge show up:
+        shape = [(max(0, box[0]), min(box[1], img.size[0]-1)), \
+                 (max(0, box[2]), min(box[3], img.size[1]-1))]
+                 
+        img1.rectangle(shape, outline="red", width=3)
+        img1.text((box[0], box[1]), str(i + 2), font = font, fill="red")
         # print(mask_results[i].astype(int).flatten().tolist())
         mask = mask_results[i].astype(int).flatten().tolist()
         if len(mask) >= 6:
             color = (randint(0,255),randint(0,255),randint(0,255))
             img1.polygon(mask, fill=color+(125,), outline="blue")
+    
+    for i, patch in enumerate(patches):
+        img1.rectangle([(patch[0], patch[1]), (patch[2], patch[3])], outline="green", width=1)
             
     img.save( "{f}/{id}".format(f=out_dir, id=img_filename) )
     
