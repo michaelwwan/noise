@@ -200,7 +200,7 @@ def inference(model, img, img_filename, size, out_dir):
 
     # Draw boxes on original image
     img1 = ImageDraw.Draw(img, 'RGBA')
-    font = ImageFont.load_default(20)
+    font = ImageFont.load_default()
     
     for i, box in enumerate(box_results):
         box = box[:4].type(torch.int)
