@@ -73,14 +73,14 @@ ImageJ is used following the steps below to determine the area value for the arg
   </p>
 </div>
 
-## Calculating an Accurate um/pixel Ratio
+## Calculating an Accurate μm/pixel Ratio
 
-The um/pixel ```--ratio``` can be estimated in ImageJ using the following steps.
+The μm/pixel ```--ratio``` can be estimated in ImageJ (https://imagej.net/ij/download.html) using the following steps:
 
 1) Determine the surface area of your well in um, this info can be found on the manufacturer's website for the cell culture plate you are using.
 2) Find the total area of the well in pixels (shown in the above step).
 3) Use the line tool in ImageJ (shown in image below) to measure the diameter of the well. Divide this value by 2 to obtain the radius of the well.
-4) Now use the formula (well surface area)/(radius) = ratio to obtain the estimated ratio of um/pixels
+4) Now use the formula (well surface area)/(radius) = ratio to obtain the estimated ratio of μm/pixels
 
 <div align="center">
   <p>
@@ -88,7 +88,7 @@ The um/pixel ```--ratio``` can be estimated in ImageJ using the following steps.
   </p>
 </div>
 
-An example calculation from the above image of a 96-well plate imaged at 20x is 3191.5um/(14880.03 pixels / 2) = 0.429 um/pixel which would be the value for the ```--ratio``` argument. 
+An example calculation from the above image of a 96-well plate imaged at 20x is 3191.5 μm / (14880.03 pixels / 2) = 0.429 μm/pixel which would be the value for the ```--ratio``` argument. 
 
 ## Dataset
 Our dataset consists of full slide images and corresponding instance segmentation annotations, along with patches used for training and validation in our experiments. Please download the dataset from [here](https://drive.google.com/drive/folders/1hwGVKH4pN1Ftcl9bDKUykTIU8mcZfmiu?usp=drive_link), unzip the data and place it in the dataset folder with the following folder structure:
