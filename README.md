@@ -75,6 +75,14 @@ ImageJ is used following the steps below to determine the area value for the arg
 
 ## Calculating an Accurate um/pixel Ratio
 
+The um/pixel ```--ratio``` can be estimated in ImageJ using the following steps.
+
+1) Determine the surface area of your well in um, this info can be found on the manufacturer's website for the cell culture plate you are using.
+2) Find the total area of the well in pixels (shown in the above step).
+3) Use the line tool in ImageJ (shown in image below) to measure the diameter of the well. Divide this value by 2 to obtain the radius of the well.
+4) Now use the formula (well surface area)/(radius) = ratio to obtain the estimated ratio of um/pixels
+
+
 
 
 ## Dataset
