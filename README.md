@@ -61,7 +61,7 @@ Outputs will be stored in ```path/to/output```. The output for each image consis
 
 ## Determining the Total Area of the Well in Pixels for Area Output
 
-ImageJ is used following the steps below to determine the area value for the argument ```--total_well_area_in_pixels```. 
+ImageJ (https://imagej.net/ij/download.html) is used following the steps below to determine the area value for the argument ```--total_well_area_in_pixels```. 
 
 1) Open an image from your dataset in ImageJ.
 2) Use the circle tool to fit the circle to the perimeter of the well, and add to the ROI manager.
@@ -75,7 +75,7 @@ ImageJ is used following the steps below to determine the area value for the arg
 
 ## Calculating an Accurate μm/pixel Ratio
 
-The μm/pixel ```--ratio``` can be estimated in ImageJ (https://imagej.net/ij/download.html) using the following steps:
+The μm/pixel ```--ratio``` can be estimated in ImageJ using the following steps:
 
 1) Determine the surface area of your well in um, this info can be found on the manufacturer's website for the cell culture plate you are using.
 2) Find the total area of the well in pixels (shown in the above step).
