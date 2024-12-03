@@ -57,7 +57,11 @@ You can select a CUDA device, e.g. with ```--device cuda```, but otherwise infer
 
 You can include ```--total_well_area_in_pixels``` for accurate percent osteoclast coverage of each well. The method to find the total well area in pixels for this argument is shown below. If output is not needed, the default will return None for this calculation. 
 
-Outputs will be stored in ```path/to/output```. The output for each image consists of a text file containing all predicted bounding boxes, objectness scores, and segmentation masks as well as an image representing these same results.
+## Outputs
+
+1) Model outputs will be stored in ```path/to/output```. The output for each image consists of a text file containing all predicted bounding boxes, objectness scores, and segmentation masks as well as an image representing these same results.
+2) The number of osteoclasts per well will be stored in the ```ocl_counts.txt``` in the directory where inference is run.
+3) The total area of osteoclast coverage in pixels and the percentage of the well covered by osteoclasts will be stored in ```ocl_area.txt``` in the directory where inference is run. 
 
 ## Determining the Total Area of the Well in Pixels for Area Output
 
