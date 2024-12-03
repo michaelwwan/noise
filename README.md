@@ -63,11 +63,17 @@ Outputs will be stored in ```path/to/output```. The output for each image consis
 
 ImageJ is used following the steps below to determine the area value for the argument ```--total_well_area_in_pixels```. 
 
-1) Open an image of your dataset in ImageJ.
+1) Open an image from your dataset in ImageJ.
 2) Use the circle tool to fit the circle to the perimeter of the well, and add to the ROI manager.
-3) Hit measure to obtain an area in pixels, this integer will be used for the ```--total_well_area_in_pixels``` argument.
+3) Hit measure to obtain an area in pixels, this integer will be used for the ```--total_well_area_in_pixels``` argument. In the example below, the area ```173174621``` would be utilized as the value for this argument.
 
+<div align="center">
+  <p>
+    <img width="75%" src="images/ImageJ_total_area.png" alt="ImageJ Total Area Measurment">
+  </p>
+</div>
 
+## Calculating an Accurate um/pixel Ratio
 
 
 
