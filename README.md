@@ -29,7 +29,7 @@ For alternative installation methods including [Conda](https://anaconda.org/cond
 ## Quickstart Guide: Whole Slide Inference 
 This section will walk you through applying one of our osteoclast instange segmentation models on your own whole slide or well images, without needing to do any machine learning training, and with minimal setup and computing requirements. Internally, our script will break your image down into overlapping ```832x832``` resolution patches, apply the specific instance segmentation model on those patches, and then intelligently merge the results to generate results for your original image. 
 
-You do need to download the model "checkpoint" corresponding to the model you want to run, and place it in a `/checkpoint` directory. You can follow our recommendations below for which model to use, or take a look at our [paper](https://arxiv.org/pdf/2404.10130.pdf) for more information about each model.
+You do need to download the model "checkpoint" corresponding to the model you want to run from [here](https://drive.google.com/drive/folders/1a0AVpEpsOgw5eCZa_imgZ0oH_bq2CfhW?usp=share_link), and place it in a `/checkpoint` directory. You can follow our recommendations below for which model to use, or take a look at our [paper](https://arxiv.org/pdf/2404.10130.pdf) for more information about each model.
 
 | Experiment | Model Filename | Description | Use This Model For ... |
 | ----- | ----- | ----- | ----- |
