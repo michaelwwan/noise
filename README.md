@@ -45,9 +45,31 @@ You do need to download the model "checkpoint" corresponding to the model you wa
 
 Inference can be performed with the following command.
 
+Preferred Method:
+```
+python wholeslide_inference.py --params path/to/params.json
+```
+
+Optional Method:
 ```
 python wholeslide_inference.py --model_path path/to/checkpoint.pt --img_foldername path/to/images --out_foldername path/to/output --total_well_area_in_pixels integer
 ```
+
+For the preferred method to perform inference, a params.json (see below for additional information) must be created by the user. A sample params.json is included above. 
+
+## Creating the Parameter File 
+
+The following parameters are required with user input arguments:
+
+1) "model_path": Provide the path to the saved checkpoint to be used for inference as, "path/to/checkpoint.pt"
+2) "img_foldername": Provide the path to the images directory inference will be performed on as,  "path/to/images/"
+3) "out_foldername": Provide the path to the preferred output directory as, "path/to/output/"
+4) "ratio": Provide the μm/pixel ratio for your dataset (see below for additional information), as integer or float (e.g. 0.3892)
+5)  "device": Provide the device inference will be run on as, "cpu" or "cuda".
+
+Opional Parameter:
+
+"total_well_area_in_pixels": Provide the total well area in pixels if % osteoclast coverage per well is a desired output as, integer (e.g. 3755844). You can include this parameter for accurate percent osteoclast coverage of each well. The method to find the total well area in pixels for this argument is shown below. If output is not needed, the default will return None for this calculation. 
 
 You can include ```--ratio r``` to set the μm/pixel ratio ```r``` for your dataset. The default value is the ratio for our training images, 0.7784 μm/pixel. We use this to scale the pixel size of the underlying square patches in which inference is performed, which are 832 × 832 by default, so that the side length always corresponds to the true length of ~647.7 μm = 832 pixels × 0.7784 μm/pixel. 
 
@@ -55,13 +77,12 @@ Our patches were chosen in order to dwarf the size of most osteoclasts in our tr
 
 You can select a CUDA device, e.g. with ```--device cuda```, but otherwise inference will run on a cpu by default.
 
-You can include ```--total_well_area_in_pixels``` for accurate percent osteoclast coverage of each well. The method to find the total well area in pixels for this argument is shown below. If output is not needed, the default will return None for this calculation. 
-
 ## Outputs
 
 1) Model outputs will be stored in ```path/to/output```. The output for each image consists of a text file containing all predicted bounding boxes, objectness scores, and segmentation masks as well as an image representing these same results.
-2) The number of osteoclasts per well will be stored in the ```ocl_counts.txt``` in the directory where inference is run.
-3) The total area of osteoclast coverage in pixels and the percentage of the well covered by osteoclasts will be stored in ```ocl_area.txt``` in the directory where inference is run. 
+2) The number of osteoclasts per well will be stored in the ```ocl_counts.csv``` in the directory where inference is run.
+3) The total area of osteoclast coverage in pixels and the percentage of the well covered by osteoclasts will be stored in ```ocl_area.csv``` in the directory where inference is run.
+4) The total individual areas of each osteoclast per image will be stored in ```ocl_individual_area.csv```, where the first column represents the image names, and corresponding rows are the individual area in pixels. 
 
 ## Determining the Total Area of the Well in Pixels for Area Output
 
