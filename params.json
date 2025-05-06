@@ -1,0 +1,9 @@
+{
+    "model_path": "path/to/checkpoint.pt",
+    "img_foldername": "path/to/images/",
+    "out_foldername": "path/to/output/",
+    "ratio": ratio,
+    "device": "device",
+    "total_well_area_in_pixels": integer 
+
+}
