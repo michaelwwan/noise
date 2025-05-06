@@ -69,7 +69,7 @@ The following parameters are required with user input arguments:
 
 Opional Parameter:
 
-"total_well_area_in_pixels": Provide the total well area in pixels if % osteoclast coverage per well is a desired output as, integer (e.g. 3755844). You can include this parameter for accurate percent osteoclast coverage of each well. The method to find the total well area in pixels for this argument is shown below. If output is not needed, the default will return None for this calculation. 
+"total_well_area_in_pixels": Provide the total well area in pixels if % osteoclast coverage per well is a desired output as, integer (e.g. 3755844). If % area is not a desired output, please enter 0 as the argument (e.g. "total_well_area_in_pixels": 0). You can include this parameter for accurate percent osteoclast coverage of each well. The method to find the total well area in pixels for this argument is shown below. If output is not needed, the default will return None for this calculation. 
 
 You can include ```--ratio r``` to set the μm/pixel ratio ```r``` for your dataset. The default value is the ratio for our training images, 0.7784 μm/pixel. We use this to scale the pixel size of the underlying square patches in which inference is performed, which are 832 × 832 by default, so that the side length always corresponds to the true length of ~647.7 μm = 832 pixels × 0.7784 μm/pixel. 
 
