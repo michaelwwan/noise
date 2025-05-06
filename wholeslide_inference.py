@@ -10,6 +10,7 @@ import torchvision
 import argparse
 import math
 import numpy as np
+import json
 from skspatial.measurement import area_signed
 
 # um/pixel length
@@ -228,25 +229,46 @@ def inference(model, img, img_filename, size, out_dir):
         return [{"boxes":box_results[:,:4], "scores":box_results[:,4], "labels":box_results[:,5].int()}]
     else:
         return [{"boxes":[], "scores":[], "labels":[]}]
-    
-def count_ocls_from_output(out_dir):
+
+def count_ocls_from_output(img_dir, out_dir):
     
     # This script will count each newline for the files in the output directory
 
     #This will save the output_files to a list from the output directory and only include the txt files
     output_files = glob.glob((out_dir) + "*.txt")
 
+    #Add the image directory name to output file
+    image_dir = (img_dir.rsplit("/")) # split usr give image directory into a list split by /
+
+    # This will make sure that a blank name is not written as part of the ocl_count output folder name
+    if len(image_dir[-1]) > 0:
+        output_name = image_dir[-1]
+    else:
+        output_name = image_dir[-2]
+    
+    col_name = ["Image_Name", "Ocl_Count"] # Add the column names to top of csv.
+
+    csv_file_name = "ocl_counts_" + str(output_name) +".csv" # file name
+
+    with open(csv_file_name, "a", newline = '') as csvfile:
+        if os.stat(csv_file_name).st_size == 0: # only put the column name row in when the file is empty (at start)
+            writer = csv.writer(csvfile)
+            writer.writerow(col_name)
+        
     split_dir = len(out_dir)
     #To iterate over each file in that output directory
     for file in output_files:
+        counts_list = []
         with open(file, "r") as f: # f is now the object of each file
             as_string = str(f.read())
             split_string = as_string.split("\n")
-            count_value = (len(split_string[1:-1]))
-            with open("ocl_counts.txt", "a") as file:
-                file.write("{id}".format(id=f.name[split_dir:-4]) + ": " + str(count_value) + "\n")
-            file.close
-            
+            counts_list.append("{id}".format(id=f.name[split_dir:-4]))
+            counts_list.append(str(len(split_string[1:-1])))
+            with open(csv_file_name, "a", newline = '') as csvfile:
+                writer = csv.writer(csvfile)
+                writer.writerow(counts_list)
+        csvfile.close
+    
 #Below functions are required for area calculations
 def masking_coordinates_to_list(out_dir):
 
@@ -318,19 +340,68 @@ def percent_ocl_area_per_well(total_area, well_area_in_pixels):
 
     return round(perecent_area, 3)
 
-def write_area_to_output(total_area_per_well_sum, percent_area, out_dir,key):
+def write_area_to_output(img_dir, total_area_per_well_sum, percent_area, out_dir ,key):
 
-    '''Function will write each area to a txt.'''
+    '''Function will write each area to a csv.'''
 
-    with open("ocl_area.txt", "a") as file:
-        file.write(f"{key}" + ": " + " Total area = " + str(total_area_per_well_sum) + ":" + " % area = " + str(percent_area) + "\n")
-    file.close
+    image_dir = (img_dir.rsplit("/"))
+
+    if len(image_dir[-1]) > 0:
+        output_name = image_dir[-1]
+    else:
+        output_name = image_dir[-2]
+    # Add a row for column names to top of file
+
+    col_name = ["Image_Name", "Total_Area", "%_Area"] # First row of csv with column names
+
+    csv_file_name = "ocl_area_" + str(output_name) + ".csv" # name of file to store data
+
+    with open(csv_file_name, "a", newline = '') as csvfile:
+        if os.stat(csv_file_name).st_size == 0: # only put the column name row in when the file is empty (at start)
+            writer = csv.writer(csvfile)
+            writer.writerow(col_name)
+
+    area_output_tuple = [key[:-4], str(total_area_per_well_sum), str(percent_area)] # tuple to store the row to write to csv
+    with open(csv_file_name, "a", newline = '') as csvfile:
+        writer = csv.writer(csvfile)
+        writer.writerow(area_output_tuple)
+    csvfile.close
+
+def write_individual_ocl_area_to_output(img_dir, all_individual_ocl_areas_dict):
+    '''Going to output a file with all ocl areas'''
+
+    image_dir = (img_dir.rsplit("/"))
+
+    if len(image_dir[-1]) > 0:
+        output_name = image_dir[-1]
+    else:
+        output_name = image_dir[-2]
+
+    col_name = ["Image_Name"]
+
+    csv_file_name = "ocl_individual_areas_" + str(output_name) + ".csv"
+
+    with open(csv_file_name, "a", newline = '') as csvfile:
+        if os.stat(csv_file_name).st_size == 0: # only put the column name row in when the file is empty (at start)
+            writer = csv.writer(csvfile)
+            writer.writerow(col_name)
+
+    with open (csv_file_name,'a', newline='') as csvfile:
+        writer = csv.writer(csvfile)
+        for key, value in all_individual_ocl_areas_dict.items():
+            writer.writerow([key[:-4], *value]) # write a row as image name, then the individual areas. 
+
+    csvfile.close()
 
 
 def main(argv):
     
     # move the sys args into parser
     parser = argparse.ArgumentParser()
+
+    #Add option to utilize params.json file
+    parser.add_argument("--params", type=str, default=None) #should be the params file path
+
     parser.add_argument("--img_foldername", type=str, default="img")
     parser.add_argument("--out_foldername", type=str, default="out")
     parser.add_argument("--model_path", type=str, default="out")
@@ -340,17 +411,57 @@ def main(argv):
     
 
     args = parser.parse_args()
-    
-    um_per_pixel = args.ratio
-    patch_size = int( UM_PER_PATCH/um_per_pixel )
-    
-    out_dir = args.out_foldername
-    img_dir = args.img_foldername
 
-    well_area_in_pixels = args.total_well_area_in_pixels
+    json_parameter = args.params
+
+    if json_parameter != None: # if params file given
+       with open(json_parameter) as params_file: # open the params file
+           data = json.load(params_file) # store params as dict in data
+
+    for param,argument in data.items(): # parse params dict, assigning each usr argument to correct variable
+        
+        if param == "model_path":
+            model_path = argument # the model path is equal to json given argument
+            
+        if param == "img_foldername":
+            img_dir = argument
+
+        if param ==  "out_foldername":
+            out_dir = argument
+
+        if param == "ratio":
+            um_per_pixel = argument
+            patch_size = int( UM_PER_PATCH/um_per_pixel )
+
+        if param == "total_well_area_in_pixels":
+            well_area_in_pixels = argument 
+
+        if "total_well_area_in_pixels" not in data:
+            well_area_in_pixels = 0 # sets the well_area to 0, will return None for % area
+
+        if param == "device":
+            usr_device = argument
+
+        if "device" not in data:
+            usr_device = "cpu" # sets the usr_device to default cpu if it's not provided 
+
+    if json_parameter == None: # If no json params file provided, will use user arguments to run the command
+    
+        um_per_pixel = args.ratio
+        patch_size = int( UM_PER_PATCH/um_per_pixel )
+        
+        out_dir = args.out_foldername
+        img_dir = args.img_foldername
+
+        well_area_in_pixels = args.total_well_area_in_pixels
+
+        model_path = args.model_path
+        model = YOLO(model_path)
+
+        usr_device = args.device
 
     global DEVICE
-    DEVICE = torch.device(args.device)
+    DEVICE = torch.device(usr_device)
     
     if out_dir == img_dir:
         print("Error: Input directory equals output directory. Please specify a unique output directory.")
@@ -360,7 +471,6 @@ def main(argv):
     if not os.path.exists( out_dir ):
         os.makedirs( out_dir )
         
-    model_path = args.model_path
     model = YOLO(model_path)
         
     img_files = [ file for file in os.listdir(img_dir) if not file.startswith(".") ]
@@ -372,17 +482,20 @@ def main(argv):
         pred = inference(model, img, img_filename, patch_size, out_dir)
 
     
-    count_ocls_from_output(out_dir)
+    count_ocls_from_output(img_dir, out_dir)
 
     split_string = masking_coordinates_to_list(out_dir) # Split string variable is now a dictionary, where each each key is a txt and value is a set of masking coordinates.
     
+    # Store all individual areas in dict
+
+    all_individual_ocl_areas_dict = {} # key = image_name, value = list of individual ocl areas. 
+
     for keys,values in (split_string.items()):
         pixel_area_list = [] # The list containing the pixel area calculated by the shoelace formula
         file_key = []
         for i in range(len(values)):
             if i != 0 and i != (len(values)-1):
-                coordinate_list = values[i].split(',') 
-                
+                coordinate_list = values[i].split(',')     
                 coordinate_list_as_floats = [] # New list is now a list of coordinates as a float
                 for i in coordinate_list[5:]: # This will exclude the box coordinates and object score
                     if len(coordinate_list[5:]) >= 9: #This will make sure that the area is at least a three sided polygon. 
@@ -397,8 +510,10 @@ def main(argv):
 
                 pixel_area_list.append(pixel_area)
 
-        # Below will determine the total area of ocls in each well in pixels.
+        # create dict of image_name as keys and pixel area of all the individual ocl areas as values. 
+        all_individual_ocl_areas_dict[keys] = pixel_area_list
 
+        # Below will determine the total area of ocls in each well in pixels.
         # This will calculate total area of ocls in pixels
         total_area = (total_area_per_well(pixel_area_list))
 
@@ -406,16 +521,19 @@ def main(argv):
         if well_area_in_pixels != 0:
             percent_ocl_each_well = percent_ocl_area_per_well(total_area, well_area_in_pixels)
         
-            write_area_to_output(total_area, percent_ocl_each_well, out_dir, keys)
+            write_area_to_output(img_dir, total_area, percent_ocl_each_well, out_dir, keys)
         
         else:
             percent_ocl_each_well = "None"
-            write_area_to_output(total_area, percent_ocl_each_well, out_dir, keys)
+            write_area_to_output(img_dir, total_area, percent_ocl_each_well, out_dir, keys)
 
             print("If you want total area calculated, please enter pixel area of each well into the --total_well_area_in_pixels argument.")
 
-    return
     
+    # function to create csv with all individual areas. 
+    write_individual_ocl_area_to_output(img_dir, all_individual_ocl_areas_dict)
+
+    return
 
 if __name__ == '__main__':
     main(sys.argv)
