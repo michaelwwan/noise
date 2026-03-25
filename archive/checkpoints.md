@@ -1,6 +1,6 @@
 ## Archive: Model Checkpoints
 
-*3/25/26 Note:* This is an archive of the checkpoints provided with the release of our original CVPR CVMI 2024 paper. Back then, we split up our original mouse (M1–M5) and human (H1–H2) datasets into training and test splits to enable cross-validation, but this led to an complicated set of correspondingly pretrained models, documented here. In our new TBD 2026 paper, we trained new models on the entire mouse and human datasets, yielding the updated models presented in the [main readme](/README.md).
+*3/25/26 Note:* This is an archive of the checkpoints provided with the release of our original [**CVPR CVMI 2024**] paper. Back then, we split up our original mouse (M1–M5) and human (H1–H2) datasets into training and test splits to enable cross-validation, but this led to an complicated set of correspondingly pretrained models, documented here. In our new [**TBD 2026**] paper, we trained new models on the entire mouse and human datasets, yielding the updated models presented in the [main readme](/README.md).
 
 
 [Here](https://drive.google.com/drive/folders/1K7MrAER_c5vpgw2TRb3pqrMeZSqn4MrB?usp=share_link) is a link to the checkpoint files.
