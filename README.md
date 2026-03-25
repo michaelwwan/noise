@@ -5,16 +5,20 @@
   </p>
 </div>
 
-NOISe builds on top of [YOLOv8](https://github.com/ultralytics/ultralytics) for the task of osteoclast instance segmentation. This repository contains training, validation, and inference scripts to train an instance segmentation model from scratch and finetune on top of the provided checkpoints trained for osteoclast and nuclei detection as proposed in our [paper](https://openaccess.thecvf.com/content/CVPR2024W/CVMI/papers/Manne_NOISe_Nuclei-Aware_Osteoclast_Instance_Segmentation_for_Mouse-to-Human_Domain_Transfer_CVPRW_2024_paper.pdf):
+NOISe builds on top of [YOLOv8](https://github.com/ultralytics/ultralytics) for the task of osteoclast instance segmentation. This repository contains training, validation, and inference scripts to train an instance segmentation model from scratch and finetune on top of the provided checkpoints trained for osteoclast and nuclei detection from our papers:
 
-Manne, S.K.R., Martin, B., Roy, T., Neilson, R., Peters, R., Chillara, M., Lary, C.W., Motyl, K.J., Wan, M., "NOISe: Nuclei-Aware Osteoclast Instance Segmentation for Mouse-to-Human Domain Transfer.” IEEE/CVF Conference on Computer Vision and Pattern Recognition 2024 (CVPR 2024), Workshop on Computer Vision for Microscopy Image Analysis (CVMI).
+[**[CVPR CVMI 2024]**](https://openaccess.thecvf.com/content/CVPR2024W/CVMI/papers/Manne_NOISe_Nuclei-Aware_Osteoclast_Instance_Segmentation_for_Mouse-to-Human_Domain_Transfer_CVPRW_2024_paper.pdf) Manne, S.K.R., Martin, B., Roy, T., Neilson, R., Peters, R., Chillara, M., Lary, C.W., Motyl, K.J., Wan, M., "NOISe: Nuclei-Aware Osteoclast Instance Segmentation for Mouse-to-Human Domain Transfer.” IEEE/CVF Conference on Computer Vision and Pattern Recognition 2024 (CVPR 2024), Workshop on Computer Vision for Microscopy Image Analysis (CVMI).
 
-<details open>
-<summary>Install</summary>
+[**[TBD 2026]**]() Our follow-up paper, which is under review and will be announced after acceptance.
 
-Pip install the ultralytics package including all [requirements](https://github.com/ultralytics/ultralytics/blob/main/pyproject.toml) in a [**Python>=3.8**](https://www.python.org/) environment with [**PyTorch>=1.8**](https://pytorch.org/get-started/locally/).
 
-Below verified setup uses Pytorch 2.3 with CUDA 12.1 support:
+
+</details>
+
+## Quickstart Guide: Whole Slide Inference 
+This section will walk you through applying one of our osteoclast instange segmentation models on your own whole slide or well images, without needing to do any machine learning training, and with minimal setup and computing requirements. Internally, our script will break your image down into overlapping ```832x832``` resolution patches, apply the specific instance segmentation model on those patches, and then intelligently merge the results to generate results for your original image. 
+
+First, pip install the ultralytics package, including all [requirements](https://github.com/ultralytics/ultralytics/blob/main/pyproject.toml) in a [**Python>=3.8**](https://www.python.org/) environment with [**PyTorch>=1.8**](https://pytorch.org/get-started/locally/). For instance, here is a verified setup uses Pytorch 2.3 with CUDA 12.1 support:
 ```bash
 conda create --name noise python=3.8
 conda activate noise
@@ -24,24 +28,7 @@ pip install ultralytics scikit-spatial
 
 For alternative installation methods including [Conda](https://anaconda.org/conda-forge/ultralytics), [Docker](https://hub.docker.com/r/ultralytics/ultralytics), and Git, please refer to the [Quickstart Guide](https://docs.ultralytics.com/quickstart).
 
-</details>
-
-## Quickstart Guide: Whole Slide Inference 
-This section will walk you through applying one of our osteoclast instange segmentation models on your own whole slide or well images, without needing to do any machine learning training, and with minimal setup and computing requirements. Internally, our script will break your image down into overlapping ```832x832``` resolution patches, apply the specific instance segmentation model on those patches, and then intelligently merge the results to generate results for your original image. 
-
-You do need to download the model "checkpoint" corresponding to the model you want to run from [here](https://drive.google.com/drive/folders/1a0AVpEpsOgw5eCZa_imgZ0oH_bq2CfhW?usp=share_link), and place it in a `/checkpoint` directory. You can follow our recommendations below for which model to use, or take a look at our [paper](https://arxiv.org/pdf/2404.10130.pdf) for more information about each model.
-
-| Experiment | Model Filename | Description | Use This Model For ... |
-| ----- | ----- | ----- | ----- |
-| YOLOv8 M→M | `yolo_m1234.pt` | YOLOv8 model trained on M1, M2, M3, M4 | **Mouse osteoclast** instance segmentation (use this, or any of the other four YOLOv8 M→M models below) |
-| YOLOv8 M→M | `yolo_m1235.pt` | YOLOv8 model trained on M1, M2, M3, M5 | |
-| YOLOv8 M→M | `yolo_m1245.pt` | YOLOv8 model trained on M1, M2, M4, M5 | |
-| YOLOv8 M→M | `yolo_m1345.pt` | YOLOv8 model trained on M1, M3, M4, M5 | |
-| YOLOv8 M→M | `yolo_m2345.pt` | YOLOv8 model trained on M2, M3, M4, M5 | | 
-| NOISe M→H and H→H | `yolo_m_det_only.pt` | YOLOv8 model trained on mouse osteoclast & nuclei bounding boxes for detection only, used as multiclass pretraining step in the NOISe models  | **Developing a NOISe model** in a new domain (by fine-tuning this on instance segmentation masks in that domain) |
-| NOISe M→H | `noise_m.pt` | NOISe model trained on M1–5 (i.e., `yolo_m_det_only.pt`, fine-tuned on M1–5 instance segmentation masks) | **Mouse, human, or new domain osteoclast** instance segmentation (try this alongside the other recommended models) |
-| NOISe H→H | `noise_m_h1.pt` | NOISe model trained on H1 (i.e., `yolo_m_det_only.pt`, fine-tuned on H1 instance segmentation masks) | **Human osteoclast** instance segmentation (use this, or the NOISe H→H model below)  |
-| NOISe H→H | `noise_m_h1.pt` | NOISe model trained on H2 (i.e., `yolo_m_det_only.pt`, fine-tuned on H2 instance segmentation masks) |
+Next, you will need to download the model "checkpoint" corresponding to the model you want to run from [here](https://drive.google.com/drive/folders/1a0AVpEpsOgw5eCZa_imgZ0oH_bq2CfhW?usp=share_link), and place it in a `/checkpoint` directory. Most uesrs can use `noise_mh.pt`, but for more advanced and specific uses cases, see our [list of model checkpoints](#model-checkpoints) below.
 
 Inference can be performed with the following command.
 
@@ -112,6 +99,17 @@ The μm/pixel ```--ratio``` can be estimated in ImageJ using the following steps
 
 An example calculation from the above image of a 96-well plate imaged at 20x is 3191.5 μm / (14880.03 pixels / 2) = 0.429 μm/pixel which would be the value for the ```--ratio``` argument. 
 
+## Model Checkpoints
+[Here](https://drive.google.com/drive/u/1/folders/1a0AVpEpsOgw5eCZa_imgZ0oH_bq2CfhW) is a link to the checkpoint files.
+
+| Name | Model Filename | Description |
+| ----- | ----- | ----- | 
+| NOISe-M | `noise_m.pt` | NOISe model trained on M1–M5 |
+| NOISe-H | `noise_h.pt` | NOISe model trained on H1–H2 |
+| NOISe-MH | `noise_mh.pt` | (Recommended) NOISe model trained on M1–M5 & H1–H2 | 
+
+We recommend the NOISE-MH model for general use. The other models are provided to enable validation of our resluts in [**TBD 2026**], or for advanced uses. [This archived page](archive/checkpoints.md) contains older models released with our original CVPR CVMI 2024 paper, including YOLOv8 models trained without the NOISe method.
+
 ## Dataset
 Our dataset consists of full slide images and corresponding instance segmentation annotations, along with patches used for training and validation in our experiments. Please download the dataset from [here](https://drive.google.com/drive/folders/1hwGVKH4pN1Ftcl9bDKUykTIU8mcZfmiu?usp=drive_link), unzip the data and place it in the dataset folder with the following folder structure:
 
@@ -158,7 +156,7 @@ Sample command to validate a YOLOv8 M→M model:
 python train.py --ckpt checkpoints/yolo_m2345.pt --data ./osteo.yaml
 ```
 
-## Training on your data
+## Training on your own data
 NOISe can be further improved by training on custom data following these steps:
 
 ### Preparing dataset
