@@ -28,7 +28,7 @@ pip install ultralytics scikit-spatial
 
 For alternative installation methods including [Conda](https://anaconda.org/conda-forge/ultralytics), [Docker](https://hub.docker.com/r/ultralytics/ultralytics), and Git, please refer to the [Quickstart Guide](https://docs.ultralytics.com/quickstart).
 
-Next, you will need to download the model "checkpoint" corresponding to the model you want to run from [here](https://drive.google.com/drive/folders/1a0AVpEpsOgw5eCZa_imgZ0oH_bq2CfhW?usp=share_link), and place it in a `/checkpoint` directory. Most uesrs can use the NOISe M→H (`noise_m.pt`), but for more advanced and specific uses cases, see our [model zoo](#model-zoo) below.
+Next, you will need to download the model "checkpoint" corresponding to the model you want to run from [here](https://drive.google.com/drive/folders/1a0AVpEpsOgw5eCZa_imgZ0oH_bq2CfhW?usp=share_link), and place it in a `/checkpoint` directory. Most uesrs can use `noise_mh.pt`, but for more advanced and specific uses cases, see our [list of model checkpoints](#model-checkpoints) below.
 
 Inference can be performed with the following command.
 
@@ -99,10 +99,16 @@ The μm/pixel ```--ratio``` can be estimated in ImageJ using the following steps
 
 An example calculation from the above image of a 96-well plate imaged at 20x is 3191.5 μm / (14880.03 pixels / 2) = 0.429 μm/pixel which would be the value for the ```--ratio``` argument. 
 
-## Model Zoo
+## Model Checkpoints
+[Here](https://drive.google.com/drive/u/1/folders/1a0AVpEpsOgw5eCZa_imgZ0oH_bq2CfhW) is a link to the checkpoint files.
 
-See [this archived page](archive/checkpoints.md) for a list of models released with our original CVPR CVMI 2024 paper.
+| Name | Model Filename | Description |
+| ----- | ----- | ----- | 
+| NOISe-M | `noise_m.pt` | NOISe model trained on M1–M5 |
+| NOISe-H | `noise_h.pt` | NOISe model trained on H1–H2 |
+| NOISe-MH | `noise_mh.pt` | (Recommended) NOISe model trained on M1–M5 & H1–H2 | 
 
+We recommend the NOISE-MH model for general use. The other models are provided to enable validation of our resluts in [**TBD 2026**], or for advanced uses. [This archived page](archive/checkpoints.md) contains older models released with our original CVPR CVMI 2024 paper, including YOLOv8 models trained without the NOISe method.
 
 ## Dataset
 Our dataset consists of full slide images and corresponding instance segmentation annotations, along with patches used for training and validation in our experiments. Please download the dataset from [here](https://drive.google.com/drive/folders/1hwGVKH4pN1Ftcl9bDKUykTIU8mcZfmiu?usp=drive_link), unzip the data and place it in the dataset folder with the following folder structure:
