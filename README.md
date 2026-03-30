@@ -18,7 +18,7 @@ NOISe builds on top of [YOLOv8](https://github.com/ultralytics/ultralytics) for 
 ## Quickstart Guide: Whole Slide Inference 
 This section will walk you through applying one of our osteoclast instange segmentation models on your own whole slide or well images, without needing to do any machine learning training, and with minimal setup and computing requirements. Internally, our script will break your image down into overlapping ```832x832``` resolution patches, apply the specific instance segmentation model on those patches, and then intelligently merge the results to generate results for your original image. 
 
-First, install a package manager such as [Conda](https://www.anaconda.com/docs/getting-started/main) The steps below is a verified setup that uses Pytorch 2.3 with CUDA 12.1 support. These steps can be utilized to create an environment to run `noise_inference.py`. 
+First, install a package manager such as [Conda](https://www.anaconda.com/docs/getting-started/main). The steps below is a verified setup that uses Pytorch 2.3 with CUDA 12.1 support. These steps can be utilized to create an environment to run `noise_inference.py`. 
 ```bash
 conda create --name noise python=3.8
 conda activate noise
@@ -29,9 +29,9 @@ The ultralytics package can be installed using pip, including all [requirements]
 
 For alternative ultralytics installation methods including [Conda](https://anaconda.org/conda-forge/ultralytics), [Docker](https://hub.docker.com/r/ultralytics/ultralytics), and Git, please refer to the [Quickstart Guide](https://docs.ultralytics.com/quickstart).
 
-Next, you will need to download the model "checkpoint" corresponding to the model you want to run from [here](https://drive.google.com/drive/folders/1a0AVpEpsOgw5eCZa_imgZ0oH_bq2CfhW?usp=share_link), and place it in a `/checkpoint` directory. Most users can use `noise_mh.pt`, but for more advanced and specific uses cases, see our [list of model checkpoints](#model-checkpoints) below.
+Next, you will need to download the model you want to use from [here](https://drive.google.com/drive/folders/1a0AVpEpsOgw5eCZa_imgZ0oH_bq2CfhW?usp=share_link). The models should be saved in a directory that will be referenced when running the `noise_inference.py` algorithm. Most users can use `noise_mh.pt`, but for more advanced and specific uses cases, see our [list of model checkpoints](#model-checkpoints) below.
 
-Inference can be performed with the following command.
+Inference (osteoclast detection) can be performed with the following command:
 
 Preferred Method:
 ```
@@ -45,13 +45,13 @@ conda activate noise
 python noise_inference.py --model_path path/to/checkpoint.pt --img_foldername path/to/images --out_foldername path/to/output --total_well_area_in_pixels integer
 ```
 
-For the preferred method to perform inference, a params.json (see below for additional information) must be created by the user. A sample params.json is included above. 
+For the preferred method to perform inference, a params.json (see below for additional information) must be created by the user. A sample params.json is included for download above. 
 
 ## Creating the Parameter File (params.json) 
 
 Parameters with user input arguments:
 
-1) "model_path": Provide the path to the saved checkpoint to be used for inference as, "path/to/checkpoint.pt"
+1) "model_path": Provide the path to the saved model to be used for inference as, "path/to/model.pt"
 2) "img_foldername": Provide the path to the images directory inference will be performed on as,  "path/to/images/"
 3) "out_foldername": Provide the path to the preferred output directory as, "path/to/output/"
 4) "ratio": Provide the μm/pixel ratio for your dataset (see below for additional information), as integer or float (e.g. 0.3892)
