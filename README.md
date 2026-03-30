@@ -16,9 +16,9 @@ NOISe builds on top of [YOLOv8](https://github.com/ultralytics/ultralytics) for 
 </details>
 
 ## Quickstart Guide: NOISe Inference for Osteoclast Detection 
-This section will walk you through applying one of our osteoclast instange segmentation models on your own whole slide or well images, without needing to do any machine learning training, and with minimal setup and computing requirements. Internally, our script will break your image down into overlapping ```832x832``` resolution patches, apply the specific instance segmentation model on those patches, and then intelligently merge the results to generate results for your original image. 
+This section will walk you through applying one of our osteoclast instange segmentation models on your own whole slide or well images, without needing to do any machine learning training, and with minimal setup and computing requirements. Internally, our script will break your image down into overlapping ```832x832``` resolution patches, apply the specific instance segmentation model on those patches, and then intelligently merge the results to generate results (osteoclast counts and area) for your original image. 
 
-First, install a package manager such as [Conda](https://www.anaconda.com/docs/getting-started/main). The steps below is a verified setup that uses Pytorch 2.3 with CUDA 12.1 support. These steps can be utilized to create an environment to run `noise_inference.py`. 
+First, install a package manager such as [Conda](https://www.anaconda.com/docs/getting-started/main). The steps below is a verified setup that uses Pytorch 2.3 with CUDA 12.1 support. These steps can be utilized to create an environment containing the dependencies required to run `noise_inference.py`. 
 ```bash
 conda create --name noise python=3.8
 conda activate noise
