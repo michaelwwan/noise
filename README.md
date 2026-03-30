@@ -18,28 +18,31 @@ NOISe builds on top of [YOLOv8](https://github.com/ultralytics/ultralytics) for 
 ## Quickstart Guide: Whole Slide Inference 
 This section will walk you through applying one of our osteoclast instange segmentation models on your own whole slide or well images, without needing to do any machine learning training, and with minimal setup and computing requirements. Internally, our script will break your image down into overlapping ```832x832``` resolution patches, apply the specific instance segmentation model on those patches, and then intelligently merge the results to generate results for your original image. 
 
-First, pip install the ultralytics package, including all [requirements](https://github.com/ultralytics/ultralytics/blob/main/pyproject.toml) in a [**Python>=3.8**](https://www.python.org/) environment with [**PyTorch>=1.8**](https://pytorch.org/get-started/locally/). For instance, here is a verified setup uses Pytorch 2.3 with CUDA 12.1 support:
+First, install a package manager such as [Conda](https://www.anaconda.com/docs/getting-started/main) The steps below is a verified setup that uses Pytorch 2.3 with CUDA 12.1 support. These steps can be utilized to create an environment to run `noise_inference.py`. 
 ```bash
 conda create --name noise python=3.8
 conda activate noise
 conda install pytorch torchvision torchaudio pytorch-cuda=12.1 -c pytorch -c nvidia
 pip install ultralytics scikit-spatial
 ```
+The ultralytics package can be installed using pip, including all [requirements](https://github.com/ultralytics/ultralytics/blob/main/pyproject.toml) in a [**Python>=3.8**](https://www.python.org/) environment with [**PyTorch>=1.8**](https://pytorch.org/get-started/locally/).
 
-For alternative installation methods including [Conda](https://anaconda.org/conda-forge/ultralytics), [Docker](https://hub.docker.com/r/ultralytics/ultralytics), and Git, please refer to the [Quickstart Guide](https://docs.ultralytics.com/quickstart).
+For alternative ultralytics installation methods including [Conda](https://anaconda.org/conda-forge/ultralytics), [Docker](https://hub.docker.com/r/ultralytics/ultralytics), and Git, please refer to the [Quickstart Guide](https://docs.ultralytics.com/quickstart).
 
-Next, you will need to download the model "checkpoint" corresponding to the model you want to run from [here](https://drive.google.com/drive/folders/1a0AVpEpsOgw5eCZa_imgZ0oH_bq2CfhW?usp=share_link), and place it in a `/checkpoint` directory. Most uesrs can use `noise_mh.pt`, but for more advanced and specific uses cases, see our [list of model checkpoints](#model-checkpoints) below.
+Next, you will need to download the model "checkpoint" corresponding to the model you want to run from [here](https://drive.google.com/drive/folders/1a0AVpEpsOgw5eCZa_imgZ0oH_bq2CfhW?usp=share_link), and place it in a `/checkpoint` directory. Most users can use `noise_mh.pt`, but for more advanced and specific uses cases, see our [list of model checkpoints](#model-checkpoints) below.
 
 Inference can be performed with the following command.
 
 Preferred Method:
 ```
-python wholeslide_inference.py --params path/to/params.json
+conda activate noise
+python noise_inference.py --params path/to/params.json
 ```
 
 Optional Method:
 ```
-python wholeslide_inference.py --model_path path/to/checkpoint.pt --img_foldername path/to/images --out_foldername path/to/output --total_well_area_in_pixels integer
+conda activate noise
+python noise_inference.py --model_path path/to/checkpoint.pt --img_foldername path/to/images --out_foldername path/to/output --total_well_area_in_pixels integer
 ```
 
 For the preferred method to perform inference, a params.json (see below for additional information) must be created by the user. A sample params.json is included above. 
