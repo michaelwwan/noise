@@ -1,4 +1,4 @@
-# NOISe: Nuclei-Aware Osteoclast Instance Segmentation for Mouse-to-Human Domain Transfer
+# NOISe: Nuclei-Aware Osteoclast Instance Segmentation for Automated Multi-Species Osteoclast Detection
 <div align="center">
   <p>
     <img width="100%" src="images/banner.png" alt="NOISe banner">
