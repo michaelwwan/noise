@@ -1,3 +1,5 @@
+# Testing github new local directory 2.4.26
+
 import os, sys
 import glob
 from ultralytics import YOLO
@@ -312,14 +314,6 @@ def calculate_pixel_area(coordinate_list_as_floats):
             pixel_area = (abs(area_signed(array_2d))) # Output Pixel area of each osteoclast using shoelace formula
 
             return (pixel_area)
-
-def pixel_area_to_um_sqrd(pixel_area, um_per_pixel):
-     
-    '''This function will calculate the area of each ocl in um^2.
-    Calculations will be based on um_per_pixel ratio given by the user.'''
-
-    um_sqrd_area = pixel_area * ((um_per_pixel) ** 2)
-    return round(um_sqrd_area, 3)
 
 def total_area_per_well(area_list):
 
