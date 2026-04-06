@@ -63,7 +63,7 @@ After completing the **Quickstart Guide** above, you can download the test_image
 - "device": **Only change to cpu if you do not have CUDA capabiltites on your machine.**
 - "total_well_area_in_pixels": **Do not change.**
   
-The inference output should look as follows:
+3) expected_output: This contains the three validated outputs when run on a machine with CUDA capabilities. The user should compare these outputs to theres to ensure the environement was set-up properly, and inference is working as expected. 
 
 ## Creating the Parameter File (params.json) 
 
