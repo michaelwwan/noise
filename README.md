@@ -45,7 +45,25 @@ conda activate noise
 python noise_inference.py --model_path path/to/checkpoint.pt --img_foldername path/to/images --out_foldername path/to/output --total_well_area_in_pixels integer
 ```
 
+To test enviornment was set up correctly, please refer to section **Running Inference on Test Images**
+
 For the preferred method to perform inference, a params.json (see below for additional information) must be created by the user. A sample params.json is included for download above. 
+
+## Running Inference on Test Images
+
+After completing the **Quickstart Guide** above, you can download the test_images folder and save it to your machine. This contain the following folders:
+
+1) images: Contains two test images, test_1.tif and test_2.tif that can be used to run the noise_inference script on, computing osteoclast counts, area, and individual areas per image.
+2) parameter_file: Contains the parameter_test_set.json that will be referenced when running the noise_inference script. The following is what the user needs to change to meet the needs of their machine.
+
+- "model_path": Change to be the path in which the noise_mh.pt model is stored.
+- "img_foldername": Change to be the path in which the test images are stored.
+- "out_foldername": Change to be the path where you want the output to be.
+- "ratio": **Do not change.**
+- "device": **Only change to cpu if you do not have CUDA capabiltites on your machine.**
+- "total_well_area_in_pixels": **Do not change.**
+  
+The inference output should look as follows:
 
 ## Creating the Parameter File (params.json) 
 
