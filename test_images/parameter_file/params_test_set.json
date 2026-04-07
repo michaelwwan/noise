@@ -1,0 +1,9 @@
+{
+    "model_path": "your/model/path/noise_mh.pt",
+    "img_foldername": "your/test/image/directory/",
+    "out_foldername": "your/output/directory/",
+    "ratio": 0.7784,
+    "device": "cuda",
+    "total_well_area_in_pixels": 72816
+
+}
