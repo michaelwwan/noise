@@ -22,7 +22,8 @@ First, install a package manager such as [Conda](https://www.anaconda.com/docs/g
 ```bash
 conda create --name noise python=3.8
 conda activate noise
-conda install pytorch torchvision torchaudio pytorch-cuda=12.1 -c pytorch -c nvidia
+conda install conda-forge::mamba
+mamba install pytorch torchvision torchaudio pytorch-cuda=12.1 -c pytorch -c nvidia
 pip install ultralytics scikit-spatial
 ```
 The ultralytics package can be installed using pip, including all [requirements](https://github.com/ultralytics/ultralytics/blob/main/pyproject.toml) in a [**Python>=3.8**](https://www.python.org/) environment with [**PyTorch>=1.8**](https://pytorch.org/get-started/locally/).
