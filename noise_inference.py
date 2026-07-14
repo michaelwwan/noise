@@ -27,16 +27,17 @@ Image.MAX_IMAGE_PIXELS = 1000000000
 DEVICE = torch.device('cuda:0')
 
 
-# ---- Detection aggregation: overlap-normalized mask IoU with fragment bridging ----
-# Tiles overlap ~50%, so a cell can appear across tiles either as near-duplicates or,
-# when larger than a tile, as boundary-split fragments. We walk tiles in raster order
-# accumulating detections in global coords. For each new tile we merge a new detection
-# Y into every accepted detection X it matches, scoring the match by IoU normalized to
-# the co-observed region I = (new tile) intersect (already-visited tiles):
-#     rel_iou(X, Y) = area(X ∩ Y) / area((X ∪ Y) ∩ I)
-# Normalizing by the shared region means fragment parts lying outside I do not suppress
-# the match. All matching X are bridged with Y into a single union, so a cell spanning
-# several tiles is reconstructed as one detection.
+# ---- Detection aggregation: graph / connected-components over overlapping tiles ----
+# Tiles overlap ~50%, so a cell can appear across tiles as near-duplicates or, when larger
+# than a tile, as boundary-split fragments. We collect every raw detection tagged with its
+# single source tile, then link two detections from overlapping tiles when their overlap-
+# normalized mask IoU exceeds the threshold:
+#     rel_iou(X, Y) = area(X ∩ Y) / area((X ∪ Y) ∩ I),   I = tile_X ∩ tile_Y
+# Normalizing by the co-observed region I means fragment parts lying outside I do not
+# suppress the match. Linked detections form a graph; each connected component is unioned
+# into one detection, so a cell spanning several tiles is reconstructed via transitivity
+# (a detection bridging two fragments joins their components). This is order-independent,
+# and rel_iou is always computed on raw single-tile detections, never accumulated blobs.
 
 REL_IOU_THRESHOLD = float(os.environ.get("NOISE_REL_IOU", "0.5"))  # override for threshold sweeps
 
@@ -81,19 +82,17 @@ def rel_iou(X, Y, I):
 def inference(model, img, img_filename, size, out_dir):
 
     stride = size // 2
-    accepted = []         # list of {"poly": Polygon, "score": float, "cls": int}, global coords
-    processed_tiles = []  # shapely boxes of tiles already visited
 
+    # ---- 1. collect raw detections, grouped by grid cell; remember tile footprints ----
+    grid = {}        # (row, col) -> list of detection dicts {poly, score, cls, id}
+    tile_boxes = {}  # (row, col) -> shapely box (global coords)
+    dets = []        # flat list of all detections (list index == "id")
+
+    row = 0
     for y0 in range(0, img.size[1], stride):
+        col = 0
         for x0 in range(0, img.size[0], stride):
-
-            tile_rect = shp_box(x0, y0, x0 + size, y0 + size)
-
-            # I: the part of this tile already observed by earlier overlapping tiles.
-            # Every accepted X lies within prior coverage, so X ∩ Y ⊆ I always holds --
-            # that keeps rel_iou's numerator inside its denominator (ratio in [0, 1]).
-            prior = [t for t in processed_tiles if t.intersects(tile_rect)]
-            I = tile_rect.intersection(unary_union(prior)) if prior else None
+            tile_boxes[(row, col)] = shp_box(x0, y0, x0 + size, y0 + size)
 
             # Crop onto white (PIL's default black fill causes false detections)
             img_crop = Image.new('RGB', (size, size), (255, 255, 255))
@@ -101,6 +100,7 @@ def inference(model, img, img_filename, size, out_dir):
 
             results = model(img_crop, verbose=False, device=DEVICE)
 
+            cell = []
             for r in results:
                 if r.masks is None:
                     continue
@@ -111,36 +111,64 @@ def inference(model, img, img_filename, size, out_dir):
                         continue
                     xy[:, 0] += x0  # crop-local -> global
                     xy[:, 1] += y0
-                    Y = _poly_from_xy(xy)
-                    if Y is None:
+                    poly = _poly_from_xy(xy)
+                    if poly is None:
                         continue
-                    conf = float(boxes[det_i, 4])
-                    cls = int(boxes[det_i, 5])
+                    d = {"poly": poly, "score": float(boxes[det_i, 4]),
+                         "cls": int(boxes[det_i, 5]), "id": len(dets)}
+                    dets.append(d)
+                    cell.append(d)
+            grid[(row, col)] = cell
+            col += 1
+        row += 1
 
-                    # Match Y against accepted detections. intersects(tile_rect) is a
-                    # cheap prefilter so we only run rel_iou on X's that reach into this
-                    # tile, instead of scanning the whole accumulated list every time.
-                    matches = []
-                    if I is not None and not I.is_empty:
-                        for k, X in enumerate(accepted):
-                            if X["poly"].intersects(tile_rect) and \
-                               rel_iou(X["poly"], Y, I) > REL_IOU_THRESHOLD:
-                                matches.append(k)
+    # ---- 2. link detections from overlapping tiles (union-find) ----
+    parent = list(range(len(dets)))
+    def _find(a):
+        while parent[a] != a:
+            parent[a] = parent[parent[a]]  # path compression
+            a = parent[a]
+        return a
+    def _union(a, b):
+        ra, rb = _find(a), _find(b)
+        if ra != rb:
+            parent[ra] = rb
 
-                    if matches:
-                        # Bridge every matched detection with Y into one union. Y overlaps
-                        # each match, so the union is normally a single connected Polygon;
-                        # fall back to Y if it ever degenerates to no polygon component.
-                        merged = unary_union([accepted[k]["poly"] for k in matches] + [Y])
-                        merged = _largest_polygon(merged) or Y
-                        score = max([accepted[k]["score"] for k in matches] + [conf])
-                        for k in sorted(matches, reverse=True):
-                            accepted.pop(k)
-                        accepted.append({"poly": merged, "score": score, "cls": cls})
-                    else:
-                        accepted.append({"poly": Y, "score": conf, "cls": cls})
+    # Each tile overlaps its 8 neighbors; comparing these 4 forward neighbors per cell
+    # visits every overlapping tile pair exactly once. I = the two tiles' intersection.
+    forward = [(0, 1), (1, -1), (1, 0), (1, 1)]
+    for (r, c), A in grid.items():
+        if not A:
+            continue
+        for dr, dc in forward:
+            B = grid.get((r + dr, c + dc))
+            if not B:
+                continue
+            I = tile_boxes[(r, c)].intersection(tile_boxes[(r + dr, c + dc)])
+            if I.is_empty:
+                continue
+            for a in A:
+                for b in B:
+                    if a["poly"].intersects(b["poly"]) and \
+                       rel_iou(a["poly"], b["poly"], I) > REL_IOU_THRESHOLD:
+                        _union(a["id"], b["id"])
 
-            processed_tiles.append(tile_rect)
+    # ---- 3. union each connected component into a single detection ----
+    components = {}
+    for d in dets:
+        components.setdefault(_find(d["id"]), []).append(d)
+
+    accepted = []  # list of {"poly": Polygon, "score": float, "cls": int}, global coords
+    for members in components.values():
+        if len(members) == 1:
+            m = members[0]
+            accepted.append({"poly": m["poly"], "score": m["score"], "cls": m["cls"]})
+        else:
+            merged = _largest_polygon(unary_union([m["poly"] for m in members])) \
+                     or members[0]["poly"]
+            accepted.append({"poly": merged,
+                             "score": max(m["score"] for m in members),
+                             "cls": members[0]["cls"]})
 
     # ---- write detections: box, objectness, flattened global mask coords ----
     with open("{f}/{id}".format(f=out_dir, id=img_filename[:-4] + ".txt"), 'w', newline='') as f:
@@ -165,6 +193,12 @@ def inference(model, img, img_filename, size, out_dir):
         if len(coords) >= 3:
             color = (randint(0, 255), randint(0, 255), randint(0, 255))
             img1.polygon(coords, fill=color + (125,), outline="blue")
+
+    # Green tile-boundary grid overlay (drawn last, on top of detections)
+    for tb in tile_boxes.values():
+        tminx, tminy, tmaxx, tmaxy = [int(v) for v in tb.bounds]
+        img1.rectangle([(tminx, tminy), (tmaxx, tmaxy)], outline="green", width=1)
+
     img.save("{f}/{id}".format(f=out_dir, id=img_filename))
 
     return accepted
