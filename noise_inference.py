@@ -38,7 +38,7 @@ DEVICE = torch.device('cuda:0')
 # the match. All matching X are bridged with Y into a single union, so a cell spanning
 # several tiles is reconstructed as one detection.
 
-REL_IOU_THRESHOLD = 0.5
+REL_IOU_THRESHOLD = float(os.environ.get("NOISE_REL_IOU", "0.5"))  # override for threshold sweeps
 
 def _largest_polygon(geom):
     """Reduce any geometry to its largest single Polygon component, or None.
