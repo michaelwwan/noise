@@ -1,0 +1,19 @@
+# Local Python deps installed to a target dir on the cluster (see README)
+_pylibs/
+
+# Python caches
+__pycache__/
+*.pyc
+
+# Inference run outputs written into the repo
+ocl_*.csv
+test_images/*_output/
+
+# Cluster-local run configs and SLURM job scripts
+params_run*.json
+params_test.json
+*.sbatch
+
+# Scratch / diagnostics
+_dims.py
+_env_check.py
