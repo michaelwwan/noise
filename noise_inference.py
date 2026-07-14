@@ -14,6 +14,8 @@ import math
 import numpy as np
 import json
 from skspatial.measurement import area_signed
+from shapely.geometry import Polygon, box as shp_box
+from shapely.ops import unary_union
 
 # um/pixel length
 UM_PER_PIXEL = 0.7784
@@ -25,212 +27,147 @@ Image.MAX_IMAGE_PIXELS = 1000000000
 DEVICE = torch.device('cuda:0')
 
 
-def scale_boxes(boxes, num_images, img_ind, img_scale):
-    boxes[:,(0,2)] = boxes[:,(0,2)] + (img_scale[0]/2)*img_ind[0] # x
-    boxes[:,(1,3)] = boxes[:,(1,3)] + (img_scale[1]/2)*img_ind[1] # y
-    return boxes
-    
-def scale_masks(masks, num_images, img_ind, img_scale):
-    for m in range(len(masks)):
-        masks[m] = masks[m] + (img_scale/2)*img_ind # x
-    return masks
+# ---- Detection aggregation: overlap-normalized mask IoU with fragment bridging ----
+# Tiles overlap ~50%, so a cell can appear across tiles either as near-duplicates or,
+# when larger than a tile, as boundary-split fragments. We walk tiles in raster order
+# accumulating detections in global coords. For each new tile we merge a new detection
+# Y into every accepted detection X it matches, scoring the match by IoU normalized to
+# the co-observed region I = (new tile) intersect (already-visited tiles):
+#     rel_iou(X, Y) = area(X ∩ Y) / area((X ∪ Y) ∩ I)
+# Normalizing by the shared region means fragment parts lying outside I do not suppress
+# the match. All matching X are bridged with Y into a single union, so a cell spanning
+# several tiles is reconstructed as one detection.
 
-# Credit to torchvision/ops/boxes.py
-def box_inter_union(boxes1, boxes2):
-    area1 = torchvision.ops.box_area(boxes1)
-    area2 = torchvision.ops.box_area(boxes2)
+REL_IOU_THRESHOLD = 0.5
 
-    lt = torch.max(boxes1[:, None, :2], boxes2[:, :2])  # [N,M,2]
-    rb = torch.min(boxes1[:, None, 2:], boxes2[:, 2:])  # [N,M,2]
+def _largest_polygon(geom):
+    """Reduce any geometry to its largest single Polygon component, or None.
 
-    wh = (rb - lt).clamp(min=0)
-    inter = wh[:, :, 0] * wh[:, :, 1]  # [N,M]
+    Handles Polygon, MultiPolygon, and GeometryCollection (e.g. results of
+    buffer(0)/unary_union that split a self-intersecting shape into pieces).
+    """
+    if geom is None or geom.is_empty:
+        return None
+    if geom.geom_type == 'Polygon':
+        return geom
+    polys = [g for g in getattr(geom, 'geoms', [])
+             if g.geom_type == 'Polygon' and not g.is_empty]
+    if not polys:
+        return None
+    return max(polys, key=lambda g: g.area)
 
-    union = area1[:, None] + area2 - inter
+def _poly_from_xy(xy):
+    """Build a valid single shapely Polygon from an (N,2) array of global coords, or None."""
+    if xy is None or len(xy) < 3:
+        return None
+    p = Polygon(xy)
+    if not p.is_valid:
+        p = p.buffer(0)          # repair self-intersections; may yield Multi/empty
+    p = _largest_polygon(p)      # normalize to a single Polygon
+    if p is None or p.is_empty or p.area == 0.0:
+        return None
+    return p
 
-    return inter, union
-    
-def local_nms(box_results, mask_results, img_size): # Non-maximum suppression for patch results
+def rel_iou(X, Y, I):
+    """Overlap-normalized IoU: area(X ∩ Y) / area((X ∪ Y) ∩ I); 0 if undefined."""
+    inter = X.intersection(Y).area
+    if inter == 0.0:
+        return 0.0
+    denom = X.union(Y).intersection(I).area
+    if denom == 0.0:
+        return 0.0
+    return inter / denom
 
-    if box_results[1][1].numel() == 0:
-        return torch.tensor([], device=DEVICE), []
-    
-    keep_bool_master = []
-    tmp_boxes = []
-
-    tmp_boxes.append(box_results[0][0])
-    tmp_boxes.append(box_results[0][1])
-    tmp_boxes.append(box_results[0][2])
-    tmp_boxes.append(box_results[1][0])
-
-    tmp_boxes.append(box_results[1][2])
-    tmp_boxes.append(box_results[2][0])
-    tmp_boxes.append(box_results[2][1])
-    tmp_boxes.append(box_results[2][2])
-    tmp_boxes_torch = torch.cat(tmp_boxes)
-    
-    # If no neighboring predictions, skip
-    if torch.numel(tmp_boxes_torch)==0:
-        return torch.tensor([], device=DEVICE), []
-    
-    for box in box_results[1][1]:
-        intersection = box_inter_union(box[:4].unsqueeze(0), tmp_boxes_torch[:,:4])[0]
-
-        surf_area = torchvision.ops.box_area( box[:4].unsqueeze(0) )[0]
-        comp = ((surf_area - intersection)/surf_area) < 0.1
-        if torch.any( comp ):
-            area = torchvision.ops.box_area( tmp_boxes_torch[comp[0],:4] )
-            # If boxes overlap significantly, keep larger box
-            if (torch.all(surf_area > area) \
-                and (box[0] < img_size[0]) \
-                and (box[1] < img_size[1])):
-                # Also checks that the box starts inside the original image
-                keep_bool_master.append( True )
-            else:
-                keep_bool_master.append( False )
-        else:
-            keep_bool_master.append( True )
-        
-        
-    if not any(keep_bool_master):
-        return torch.tensor([], device=DEVICE), []
-    
-    box_results = box_results[1][1][keep_bool_master]
-    mask_results = [ mask_results[1][1][i] for i in range(len(keep_bool_master)) if keep_bool_master[i] ]
-    return box_results, mask_results
-    
 def inference(model, img, img_filename, size, out_dir):
-    
-    empty_tensor = torch.tensor([], device=DEVICE)
-    
-    # divide size of image by size of patch/2
-    num_patches = ( np.array(img.size) / (size/2) ).astype(int)
-    
-    # Run inference on each image
-    box_results = []
-    mask_results = []
 
-    
-    box_results.append( [empty_tensor for _ in range(0, img.size[0], size//2)] )
-    box_results[-1] += [empty_tensor, empty_tensor]
-    mask_results.append( [[] for _ in range(0, img.size[0], size//2)] )
-    mask_results[-1] += [[], []]
-    
-    patches = [] # For debugging
-    
-    for y0 in range(0, img.size[1], size//2):
-        box_results.append([ empty_tensor ])
-        mask_results.append([ [] ])
-        for x0 in range(0, img.size[0], size//2):
-            
-            x1, y1 = x0+size, y0+size
-            
-            patches += [[x0, y0, x1, y1]] # For visualizing crop grid later
-            
-            # Create crops (pasting onto blank white image, since the default
-            # PIL crop function fills with black, causing false detections):
+    stride = size // 2
+    accepted = []         # list of {"poly": Polygon, "score": float, "cls": int}, global coords
+    processed_tiles = []  # shapely boxes of tiles already visited
+
+    for y0 in range(0, img.size[1], stride):
+        for x0 in range(0, img.size[0], stride):
+
+            tile_rect = shp_box(x0, y0, x0 + size, y0 + size)
+
+            # I: the part of this tile already observed by earlier overlapping tiles.
+            # Every accepted X lies within prior coverage, so X ∩ Y ⊆ I always holds --
+            # that keeps rel_iou's numerator inside its denominator (ratio in [0, 1]).
+            prior = [t for t in processed_tiles if t.intersects(tile_rect)]
+            I = tile_rect.intersection(unary_union(prior)) if prior else None
+
+            # Crop onto white (PIL's default black fill causes false detections)
             img_crop = Image.new('RGB', (size, size), (255, 255, 255))
             img_crop.paste(img, (-x0, -y0))
-            
-            # # Old cropping function (default black fill caused bad detections):
-            # img_crop = img.crop((x0,y0,x1,y1))
-            
-            # # Save cropped images for debugging:
-            # img_crop.save( "{f}/{a}_{b}_{id}".format(f=out_dir, a = str(x0), b = str(y0), id=img_filename) )
-            
-            yc=math.ceil(y0/(size//2))
-            xc=math.ceil(x0/(size//2))
-            
-            results = model( img_crop, verbose=False, device=DEVICE )
-            img_ind = np.array((xc,yc))
-            
-            # Scale the predictions back to their proper size
-            for r in range(len(results)):
-                boxes = results[r].boxes.data.clone()
-                
-                if boxes.numel() != 0: # if osteoclasts detected
-                    boxes = scale_boxes(boxes, num_patches, img_ind, (size,size))
-                    masks = scale_masks(results[r].masks.xy, num_patches, img_ind, np.array((size,size)))
-                    box_results[-1].append( boxes )
-                    mask_results[-1].append( masks )
-                else:
-                    box_results[-1].append( empty_tensor )
-                    mask_results[-1].append( [] )
-                    
-        box_results[-1].append( empty_tensor )
-        mask_results[-1].append( [] )
-    
-    box_results.append( [empty_tensor for _ in range(0, img.size[0], size//2)] )
-    box_results[-1] += [empty_tensor, empty_tensor]
-    mask_results.append( [[] for _ in range(0, img.size[0], size//2)] )
-    mask_results[-1] += [[], []]
-    
-    objects_found = True if box_results else False
-    
-    if objects_found:
-    
-        new_box_results = []
-        new_mask_results = []
-        for r in range(1,len(box_results)-1):
-            for c in range(1,len(box_results[r])-1):
-                
-                # If empty
-                if torch.numel(box_results[r][c])==0:
+
+            results = model(img_crop, verbose=False, device=DEVICE)
+
+            for r in results:
+                if r.masks is None:
                     continue
-                
-                output = local_nms([ b[c-1:c+2] for b in box_results[r-1:r+2] ], [ m[c-1:c+2] for m in mask_results[r-1:r+2] ], img.size)
-                
-                # print(r, c, output[0], '\n')
-                
-                new_box_results.append(output[0])
-                new_mask_results += output[1]
+                boxes = r.boxes.data  # (N, 6): x1,y1,x2,y2,conf,cls in crop-local coords
+                for det_i, poly_xy in enumerate(r.masks.xy):
+                    xy = np.asarray(poly_xy, dtype=float).copy()
+                    if len(xy) < 3:
+                        continue
+                    xy[:, 0] += x0  # crop-local -> global
+                    xy[:, 1] += y0
+                    Y = _poly_from_xy(xy)
+                    if Y is None:
+                        continue
+                    conf = float(boxes[det_i, 4])
+                    cls = int(boxes[det_i, 5])
 
-        # If no osteoclasts are detected in image, this will handle the output
-        if len(new_box_results) > 0:
-            box_results = torch.cat(new_box_results)
-            mask_results = new_mask_results
-        else:
-            box_results = [0]
-            mask_results = new_mask_results
+                    # Match Y against accepted detections. intersects(tile_rect) is a
+                    # cheap prefilter so we only run rel_iou on X's that reach into this
+                    # tile, instead of scanning the whole accumulated list every time.
+                    matches = []
+                    if I is not None and not I.is_empty:
+                        for k, X in enumerate(accepted):
+                            if X["poly"].intersects(tile_rect) and \
+                               rel_iou(X["poly"], Y, I) > REL_IOU_THRESHOLD:
+                                matches.append(k)
 
-    
-    with open("{f}/{id}".format(f=out_dir, id=img_filename[:-4]+".txt"), 'w', newline='') as f:
+                    if matches:
+                        # Bridge every matched detection with Y into one union. Y overlaps
+                        # each match, so the union is normally a single connected Polygon;
+                        # fall back to Y if it ever degenerates to no polygon component.
+                        merged = unary_union([accepted[k]["poly"] for k in matches] + [Y])
+                        merged = _largest_polygon(merged) or Y
+                        score = max([accepted[k]["score"] for k in matches] + [conf])
+                        for k in sorted(matches, reverse=True):
+                            accepted.pop(k)
+                        accepted.append({"poly": merged, "score": score, "cls": cls})
+                    else:
+                        accepted.append({"poly": Y, "score": conf, "cls": cls})
+
+            processed_tiles.append(tile_rect)
+
+    # ---- write detections: box, objectness, flattened global mask coords ----
+    with open("{f}/{id}".format(f=out_dir, id=img_filename[:-4] + ".txt"), 'w', newline='') as f:
         writer = csv.writer(f, delimiter=',')
-        writer.writerow( ["box_x1","box_y1","box_x2","box_y2","objectness_score","mask_x1","mask_y1","mask_x2","mask_y2","..."] )
-        if (len(box_results)) > 1:
-            for i in range(len(box_results)):
-                writer.writerow( box_results[i].tolist()[:-1] + mask_results[i].flatten().tolist() )
-        else:
-             return f.write("No osteoclasts detected")
+        writer.writerow(["box_x1", "box_y1", "box_x2", "box_y2", "objectness_score",
+                         "mask_x1", "mask_y1", "mask_x2", "mask_y2", "..."])
+        if len(accepted) == 0:
+            return f.write("No osteoclasts detected")
+        for det in accepted:
+            minx, miny, maxx, maxy = det["poly"].bounds
+            mask = np.asarray(det["poly"].exterior.coords).flatten().tolist()
+            writer.writerow([minx, miny, maxx, maxy, det["score"]] + mask)
 
-    # Draw boxes on original image
+    # ---- annotated image ----
     img1 = ImageDraw.Draw(img, 'RGBA')
-    font = ImageFont.load_default()
-    
-    for i, box in enumerate(box_results):
-        box = box[:4].type(torch.int)
-        
-        # The min/max modifiers seem to help boxes on the edge show up:
-        shape = [(max(0, box[0]), min(box[1], img.size[0]-1)), \
-                 (max(0, box[2]), min(box[3], img.size[1]-1))]
-                 
+    for i, det in enumerate(accepted):
+        minx, miny, maxx, maxy = [int(v) for v in det["poly"].bounds]
+        shape = [(max(0, minx), max(0, miny)),
+                 (min(maxx, img.size[0] - 1), min(maxy, img.size[1] - 1))]
         img1.rectangle(shape, outline="red", width=3)
-        img1.text((box[0], box[1]), str(i + 2), font = font, fill="red")
-        # print(mask_results[i].astype(int).flatten().tolist())
-        mask = mask_results[i].astype(int).flatten().tolist()
-        if len(mask) >= 6:
-            color = (randint(0,255),randint(0,255),randint(0,255))
-            img1.polygon(mask, fill=color+(125,), outline="blue")
-    
-    for i, patch in enumerate(patches):
-        img1.rectangle([(patch[0], patch[1]), (patch[2], patch[3])], outline="green", width=1)
-            
-    img.save( "{f}/{id}".format(f=out_dir, id=img_filename) )
-    
-    if objects_found:
-        return [{"boxes":box_results[:,:4], "scores":box_results[:,4], "labels":box_results[:,5].int()}]
-    else:
-        return [{"boxes":[], "scores":[], "labels":[]}]
+        coords = [(int(px), int(py)) for px, py in det["poly"].exterior.coords]
+        if len(coords) >= 3:
+            color = (randint(0, 255), randint(0, 255), randint(0, 255))
+            img1.polygon(coords, fill=color + (125,), outline="blue")
+    img.save("{f}/{id}".format(f=out_dir, id=img_filename))
+
+    return accepted
 
 def count_ocls_from_output(img_dir, out_dir):
     
