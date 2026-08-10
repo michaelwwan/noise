@@ -330,7 +330,7 @@ def sig(x, digits=3):
 
 
 CSV_FIELDS = [
-    "timestamp", "model_a", "model_b", "dataset", "metric",
+    "timestamp", "model_a", "model_b", "dataset", "metric", "excluded_images",
     "ap25", "ap50", "ap75", "map_coco",
     "count_mae", "count_rmse", "count_ba_bias", "count_ba_loa_low", "count_ba_loa_high",
     "count_ks_stat", "count_ks_pvalue", "count_ttest_pvalue", "count_wilcoxon_pvalue",
@@ -355,6 +355,7 @@ def write_csv(csv_path, args, ap25, ap50, ap75, map_coco, count_stats, area_stat
             "model_b": args.model_b,
             "dataset": args.dataset,
             "metric": args.metric,
+            "excluded_images": args.exclude_images or "",
             "ap25": sig(ap25),
             "ap50": sig(ap50),
             "ap75": sig(ap75),
@@ -396,12 +397,19 @@ def main():
     parser.add_argument("--no-csv", action="store_true", help="Disable CSV output")
     parser.add_argument("--plot", default=None, help="Path to write the summary figure (default: <data-root>/equiv-plots_<dataset>.png)")
     parser.add_argument("--no-plot", action="store_true", help="Disable figure output")
+    parser.add_argument("--exclude-images", default=None, help="Comma-separated image IDs to drop from both runs before computing metrics (e.g. anomalous images)")
     args = parser.parse_args()
 
     dir_a = Path(args.data_root) / args.folder_pattern.format(model=args.model_a, dataset=args.dataset)
     dir_b = Path(args.data_root) / args.folder_pattern.format(model=args.model_b, dataset=args.dataset)
     runs_a = load_run(dir_a)
     runs_b = load_run(dir_b)
+
+    if args.exclude_images:
+        excluded = {int(v) if v.strip().isdigit() else v.strip() for v in args.exclude_images.split(",")}
+        runs_a = {k: v for k, v in runs_a.items() if k not in excluded}
+        runs_b = {k: v for k, v in runs_b.items() if k not in excluded}
+        print(f"Excluding image(s): {sorted(excluded)}")
 
     image_ids = sorted(set(runs_a) | set(runs_b), key=lambda x: (isinstance(x, str), x))
     only_in_a = sorted(set(runs_a) - set(runs_b))
@@ -489,7 +497,14 @@ def main():
         print(f"Appended results to {csv_path}")
 
     if not args.no_plot:
-        plot_path = Path(args.plot) if args.plot else Path(args.data_root) / f"equiv-plots_{args.dataset}.png"
+        if args.plot:
+            plot_path = Path(args.plot)
+        else:
+            suffix = ""
+            if args.exclude_images:
+                excl_tag = "-".join(str(v).strip() for v in args.exclude_images.split(","))
+                suffix = f"_excl{excl_tag}"
+            plot_path = Path(args.data_root) / f"equiv-plots_{args.dataset}{suffix}.png"
         make_figure(plot_path, args.dataset, args.model_a, args.model_b, counts_a, counts_b,
                     matched_areas_a, matched_areas_b, all_areas_a, all_areas_b, count_stats, area_stats)
         print(f"Wrote summary figure to {plot_path}")
