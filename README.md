@@ -11,9 +11,11 @@ NOISe builds on top of [YOLOv8](https://github.com/ultralytics/ultralytics) for 
 
 [**[TBD 2026]**]() Our follow-up paper, which is under review and will be announced after acceptance.
 
+## 
+\[8/10/26\]: We updated the inference script [noise_inference.py](noise_inference.py) so that it handles aggregation of model detections from across individual image patches better, especially for large osteoclasts. (Our deep learning model functions natively on these patches, which are tiled across the whole slide image. In our original training data, osteoclasts were far smaller than these patches, and aggregation of detections across these patches was relatively straightforward. Later, we noticed erratic aggregation behavior for large osteoclasts spanning multiple patches—this is what we fixed here. We validated, on a test set of a 39 images featuring over 2,000 regular osteoclasts, that the new inference script provides equivalent results, e.g., with "performance" scores of old vs new detections reaching AP@.75 over 0.9 and AP@\[.5:.95\] over 0.8. These are very stringent cell-by-cell pixel mask metrics used in computer vision, indicating excellent agreement, which lines up with our impressions from visual inspection. The old script is preserved in the repository history.)
 
+Note: Earlier substantial edits have not been logged here. Check the repo history and documentation throughout.
 
-</details>
 
 ## Quickstart Guide: NOISe Inference for Osteoclast Detection 
 This section will walk you through applying one of our osteoclast instange segmentation models on your own whole slide or well images, without needing to do any machine learning training, and with minimal setup and computing requirements. Internally, our script will break your image down into overlapping ```832x832``` resolution patches, apply the specific instance segmentation model on those patches, and then intelligently merge the results to generate results (osteoclast counts and area) for your original image. 
@@ -79,7 +81,7 @@ Parameters with user input arguments:
 
 You should include ```--ratio r``` to set the μm/pixel ratio ```r``` for your dataset. The default value is the ratio for our training images, 0.7784 μm/pixel. We use this to scale the pixel size of the underlying square patches in which inference is performed, which are 832 × 832 by default, so that the side length always corresponds to the true length of ~647.7 μm = 832 pixels × 0.7784 μm/pixel. 
 
-Our patches were chosen in order to dwarf the size of most osteoclasts in our training data, but detection can struggle when there are large osteoclasts with sizes comparable to our patch size of ~647.7 μm. We found that artificially reducing ```r``` can serve as a quick workaround: for instance, setting ```r``` to half of its true value (0.3892 μm/pixel, for us), tricks the algorithm into thinking that the osteoclasts are only half of their actual size, so more of them can fit into the patches. This is not an ideal solution by any means, since the underlying data (osteoclast incidence and appearance) is not really scale invariant, but it seems to work reasonably well for ~2× adjustments.
+Our patches were chosen in order to dwarf the size of most osteoclasts in our training data, but detection can struggle when there are large osteoclasts with sizes comparable to our patch size of ~647.7 μm. We tried to address this in an update to the inference script (see the 8/10/26 entry in the update log), but before that, we also had some limited success in dealing with this by artificially reducing ```r```, e.g., to half of its true value (0.3892 μm/pixel, for us), despite the underlying data (osteoclast incidence and appearance) is not really scale invariant.
 
 You can select a CUDA device, e.g. with ```--device cuda```, but otherwise inference will run on a cpu by default.
 
