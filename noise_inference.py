@@ -6,6 +6,7 @@ from ultralytics import YOLO
 import csv
 from PIL import Image, ImageDraw, ImageFont
 import numpy as np
+import cv2
 from random import randint
 import torch
 import torchvision
@@ -78,6 +79,40 @@ def rel_iou(X, Y, I):
     if denom == 0.0:
         return 0.0
     return inter / denom
+
+# ---- Dish-rim exclusion ----
+# Circular dishes -- especially yellowish, textured human bone chips -- have a bevel at
+# their edge that YOLO sometimes misreads as cell texture, producing a ring of false
+# detections tracing the dish boundary. We fit the dish's circular edge once per slide
+# (its interior's yellow tint depresses the blue channel relative to the white background
+# outside it, which is a cleaner signal than overall brightness) and drop any detection
+# whose centroid falls within a margin band of that boundary.
+EDGE_MARGIN_PX = float(os.environ.get("NOISE_EDGE_MARGIN_PX", "400"))
+EDGE_FIT_DOWNSCALE = 16      # downsample factor for the (cheap) circle fit
+EDGE_MIN_CIRCULARITY = 0.9   # contour_area / circle_area; below this, the fit isn't trusted
+EDGE_MIN_RADIUS_FRAC = 0.2   # dish must span at least this fraction of the image's shorter side
+
+def _fit_dish_circle(img):
+    """Fit the dish's circular boundary in full-resolution image coordinates.
+
+    Returns (center_x, center_y, radius), or None if no confident circular dish is found
+    (e.g. the image has no plain background to contrast against, or isn't dish-shaped).
+    """
+    small = img.resize((max(1, img.size[0] // EDGE_FIT_DOWNSCALE),
+                         max(1, img.size[1] // EDGE_FIT_DOWNSCALE)))
+    blue = np.asarray(small.convert('RGB'))[:, :, 2]
+    mask = (blue < 235).astype(np.uint8) * 255
+    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    if not contours:
+        return None
+    c = max(contours, key=cv2.contourArea)
+    (cx, cy), radius = cv2.minEnclosingCircle(c)
+    circle_area = math.pi * radius ** 2
+    if circle_area == 0 or cv2.contourArea(c) / circle_area < EDGE_MIN_CIRCULARITY:
+        return None
+    if radius * EDGE_FIT_DOWNSCALE < EDGE_MIN_RADIUS_FRAC * min(img.size):
+        return None
+    return cx * EDGE_FIT_DOWNSCALE, cy * EDGE_FIT_DOWNSCALE, radius * EDGE_FIT_DOWNSCALE
 
 def inference(model, img, img_filename, size, out_dir):
 
@@ -169,6 +204,23 @@ def inference(model, img, img_filename, size, out_dir):
             accepted.append({"poly": merged,
                              "score": max(m["score"] for m in members),
                              "cls": members[0]["cls"]})
+
+    # ---- drop detections tracing the dish's rim (see _fit_dish_circle) ----
+    dish = _fit_dish_circle(img)
+    if dish is not None:
+        cx, cy, radius = dish
+        kept, n_dropped = [], 0
+        for det in accepted:
+            centroid = det["poly"].centroid
+            dist = math.hypot(centroid.x - cx, centroid.y - cy)
+            if dist >= radius - EDGE_MARGIN_PX:
+                n_dropped += 1
+                continue
+            kept.append(det)
+        accepted = kept
+        if n_dropped:
+            print(f"  dish fit: center=({cx:.0f},{cy:.0f}) radius={radius:.0f}px;"
+                  f" dropped {n_dropped} rim detection(s)")
 
     # ---- write detections: box, objectness, flattened global mask coords ----
     with open("{f}/{id}".format(f=out_dir, id=img_filename[:-4] + ".txt"), 'w', newline='') as f:
