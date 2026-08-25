@@ -15,7 +15,7 @@ import math
 import numpy as np
 import json
 from skspatial.measurement import area_signed
-from shapely.geometry import Polygon, box as shp_box
+from shapely.geometry import Polygon, box as shp_box, Point
 from shapely.ops import unary_union
 
 # um/pixel length
@@ -87,7 +87,7 @@ def rel_iou(X, Y, I):
 # (its interior's yellow tint depresses the blue channel relative to the white background
 # outside it, which is a cleaner signal than overall brightness) and drop any detection
 # whose centroid falls within a margin band of that boundary.
-EDGE_MARGIN_PX = float(os.environ.get("NOISE_EDGE_MARGIN_PX", "400"))
+EDGE_MARGIN_PX = float(os.environ.get("NOISE_EDGE_MARGIN_PX", "75"))
 EDGE_FIT_DOWNSCALE = 16      # downsample factor for the (cheap) circle fit
 EDGE_MIN_CIRCULARITY = 0.9   # contour_area / circle_area; below this, the fit isn't trusted
 EDGE_MIN_RADIUS_FRAC = 0.2   # dish must span at least this fraction of the image's shorter side
@@ -207,13 +207,29 @@ def inference(model, img, img_filename, size, out_dir):
 
     # ---- drop detections tracing the dish's rim (see _fit_dish_circle) ----
     dish = _fit_dish_circle(img)
+    
     if dish is not None:
+        # cx, cy = center coordinates of the dish
+        # radius = calculated dish radius 
         cx, cy, radius = dish
+
+        # Threshold for dropping detections
+        OCL_AREA_INSIDE_THRESHOLD = 0.10 # How much of the detection that's inside the smaller radius (cyan color)
+        # Basically, if 90% of the detection is within the exclusion band on the edge, drop this detection
+
+        # Using shapely to create the outer and inner circle
+
+        outer_rim_circle = Point(cx, cy).buffer(radius) # This will draw a circle of the center point to radius
+
+        inner_rim_circle = Point(cx, cy).buffer(radius - EDGE_MARGIN_PX) # This will draw a circle at the difference between radius and the specified pixel threshold
+
+        # Dropping detections if 90% of the area falls outside of the edge radius threshold (currently set to 75 pxls)
         kept, n_dropped = [], 0
         for det in accepted:
-            centroid = det["poly"].centroid
-            dist = math.hypot(centroid.x - cx, centroid.y - cy)
-            if dist >= radius - EDGE_MARGIN_PX:
+            detection_poly = det["poly"]
+            valid_area_poly = detection_poly.intersection(inner_rim_circle) # This will determine how much of the area lies in the rim band
+            fraction_inside = (valid_area_poly.area / detection_poly.area if detection_poly.area > 0 else 0) # This is the fraction of area inside the inner edge margin
+            if fraction_inside <= OCL_AREA_INSIDE_THRESHOLD: # This will drop ocls which don't have at least 10% of the area inside the inner margin
                 n_dropped += 1
                 continue
             kept.append(det)
