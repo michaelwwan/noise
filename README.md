@@ -9,8 +9,7 @@ NOISe builds on top of [YOLOv8](https://github.com/ultralytics/ultralytics) for 
 
 [**[CVPR CVMI 2024]**](https://openaccess.thecvf.com/content/CVPR2024W/CVMI/papers/Manne_NOISe_Nuclei-Aware_Osteoclast_Instance_Segmentation_for_Mouse-to-Human_Domain_Transfer_CVPRW_2024_paper.pdf) Manne, S.K.R., Martin, B., Roy, T., Neilson, R., Peters, R., Chillara, M., Lary, C.W., Motyl, K.J., Wan, M., "NOISe: Nuclei-Aware Osteoclast Instance Segmentation for Mouse-to-Human Domain Transfer.” IEEE/CVF Conference on Computer Vision and Pattern Recognition 2024 (CVPR 2024), Workshop on Computer Vision for Microscopy Image Analysis (CVMI).
 
-[**[TBD 2026]**]() Our follow-up paper, which is under review and will be announced after acceptance.
-
+[**[JBMR+ 2026]**](https://academic.oup.com/jbmrplus/advance-article/doi/10.1093/jbmrpl/ziag144/8769683) Ryan J Neilson, Tyler Roy, Claire E Morrow, Rebecca Fontaine, Akash Dhande, Jinghua Zhu, Benjamin Aaronson, Carolyn Chlebek, Clifford J Rosen, Christine W Lary, Michael Wan, Katherine J Motyl, Fast and accurate quantification of osteoclast size and number with Nuclei-Aware Osteoclast Instance Segmentation (NOISe), JBMR Plus, 2026;, ziag144, https://doi.org/10.1093/jbmrpl/ziag144
 
 
 </details>
