@@ -217,3 +217,17 @@ If you find the dataset, model weights, or the code useful for your work, please
 }
 ```
 Note that the first two authors contributed equally.
+
+```
+@article{10.1093/jbmrpl/ziag144,
+    author = {Neilson, Ryan J and Roy, Tyler and Morrow1, Claire E and Fontaine, Rebecca and Dhande, Akash and Zhu, Jinghua and Aaronson, Benjamin and Chlebek, Carolyn and Rosen, Clifford J and Lary, Christine W and Wan, Michael and Motyl, Katherine J},
+    title = {Fast and accurate quantification of osteoclast size and number with Nuclei-Aware Osteoclast Instance Segmentation (NOISe)},
+    journal = {JBMR Plus},
+    pages = {ziag144},
+    year = {2026},
+    month = {08},
+    issn = {2473-4039},
+    doi = {10.1093/jbmrpl/ziag144},
+    url = {https://doi.org/10.1093/jbmrpl/ziag144},
+}
+```
